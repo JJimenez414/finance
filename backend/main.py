@@ -1,6 +1,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, File, UploadFile, Request, Response
 from fastapi.responses import JSONResponse
+from auth import create_access_token, verify_token
 import psycopg2
 import os
 import uvicorn
@@ -30,6 +31,19 @@ def get_db_connection():
 @app.get("/")
 def read_root() -> dict[str, str]:
 	return {"message": "Hello from FastAPI"}
+
+@app.post("/login")
+def login(request: Request):
+	data = await request.json()
+	username = data.get("username")
+	password = data.get("password")
+
+	# For demonstration, we use hardcoded credentials. Replace with DB check in production.
+	if username == "admin" and password == "password":
+		token = create_access_token({"sub": username})
+		return {"access_token": token, "token_type": "bearer"}
+	else:
+		return JSONResponse(status_code=401, content={"message": "Invalid credentials"})
 
 
 @app.post("/addTransaction")
