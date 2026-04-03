@@ -18,8 +18,8 @@ export default function App() {
 
   useEffect(() => {
     // Check if user is already logged in
-    const token = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
+    const token = localStorage.getItem("jmz_finance_access_token");
+    const savedUser = localStorage.getItem("jmz_finance_user");
     if (token && savedUser) {
       setUser(JSON.parse(savedUser));
     }
@@ -33,8 +33,8 @@ export default function App() {
   }, [user]);
 
   function handleLogout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.removeItem("jmz_finance_access_token");
+    localStorage.removeItem("jmz_finance_user");
     setUser(null);
     setBudgetData(null);
   }
@@ -65,9 +65,8 @@ export default function App() {
           </button>
         </div>
         <div className="nav-right">
-          <span className="user-info">Welcome, {user.email}</span>
           <button className="logout-button" onClick={handleLogout}>
-            Logout
+            Sign out
           </button>
         </div>
       </nav>

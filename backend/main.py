@@ -1,8 +1,9 @@
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, File, UploadFile, Request, Response
+from fastapi import FastAPI, File, UploadFile, Request, Response, HTTPException, status
 from fastapi.responses import JSONResponse
-from auth import create_access_token, verify_token
+from auth import create_access_token, verify_token, hash_password, verify_password
 import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 import uvicorn
 
@@ -10,7 +11,7 @@ app = FastAPI(title="Basic FastAPI App")
 
 app.add_middleware(
 	CORSMiddleware,
-	allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://raspi.jmzfinance.com:3000", "https://raspi.jmzfinance.com"],
+	allow_origins=["http://localhost:3000", "http://127.0.0.1:5432", "http://raspi.jmzfinance.com:3000", "https://raspi.jmzfinance.com"],
 	allow_credentials=True,
 	allow_methods=["*"],
 	allow_headers=["*"],
@@ -18,14 +19,14 @@ app.add_middleware(
 
 # Database connection function
 def get_db_connection():
-    conn = psycopg2.connect(
-		   host=os.getenv("DB_HOST", "localhost"),
-		   database=os.getenv("DB_NAME", "finance_tracker"),
-		   user=os.getenv("DB_USER", ""),
-		   password=os.getenv("DB_PASSWORD", ""),
-		   port=int(os.getenv("DB_PORT", ""))
-    )
-    return conn
+	conn = psycopg2.connect(
+		host=os.getenv("DB_HOST", "localhost"),
+		database=os.getenv("DB_NAME", "finance_tracker"),
+		user=os.getenv("DB_USER", "josea"),
+		password=os.getenv("DB_PASSWORD", "yourpassword"),
+		port=int(os.getenv("DB_PORT", "5432"))
+	)
+	return conn
 
 
 @app.get("/")
@@ -33,18 +34,100 @@ def read_root() -> dict[str, str]:
 	return {"message": "Hello from FastAPI"}
 
 @app.post("/login")
-def login(request: Request):
+async def login(request: Request):
 	data = await request.json()
-	username = data.get("username")
-	password = data.get("password")
+	username = data.get("username", "")
+	password = data.get("password", "")
 
-	# For demonstration, we use hardcoded credentials. Replace with DB check in production.
-	if username == "admin" and password == "password":
-		token = create_access_token({"sub": username})
-		return {"access_token": token, "token_type": "bearer"}
-	else:
-		return JSONResponse(status_code=401, content={"message": "Invalid credentials"})
+	if not username or not password:
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="Username and password are required"
+		)
 
+	conn = get_db_connection()
+	cur = conn.cursor(cursor_factory=RealDictCursor)
+
+	cur.execute(
+		"SELECT * FROM users WHERE username = %s",
+		(username,)
+	)
+	user = cur.fetchone()
+
+	cur.close()
+	conn.close()
+
+
+	if user is None:
+		raise HTTPException(
+			status_code=status.HTTP_401_UNAUTHORIZED,
+			detail="Invalid username or password"
+		)
+
+	if not verify_password(password, user["password"]):
+		raise HTTPException(
+			status_code=status.HTTP_401_UNAUTHORIZED,
+			detail="Invalid username or password"
+		)
+
+	token = create_access_token({"sub": user["username"]})
+
+	return {
+		"access_token": token,
+		"token_type": "bearer",
+		"user": {
+			"id": user["id"],
+			"username": user["username"],
+			"email": user["username"]
+		}
+	}
+
+@app.post("/register")
+async def register(request: Request):
+	data = await request.json()
+	username = data.get("username", "")
+	password = data.get("password", "")
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	cur.execute(
+		"SELECT * FROM users WHERE username = %s",
+		(username,)
+	)
+	existing_user = cur.fetchone()
+
+	if existing_user:
+		cur.close()
+		conn.close()
+		raise HTTPException(
+			status_code=status.HTTP_409_CONFLICT,
+			detail="Username already exists"
+		)
+
+	hashed_password = hash_password(password)
+
+	cur.execute(
+		"INSERT INTO users (username, password) VALUES (%s, %s) RETURNING id;",
+		(username, hashed_password)
+	)
+	user_id = cur.fetchone()[0]
+	token = create_access_token({"sub": username})
+
+	conn.commit()
+	cur.close()
+	conn.close()
+
+	return {
+		"message": "User registered successfully",
+		"access_token": token,
+		"token_type": "bearer",
+		"user": {
+			"id": user_id,
+			"username": username,
+			"email": username
+		}
+	}
 
 @app.post("/addTransaction")
 async def add_transactions(request: Request):
@@ -80,7 +163,6 @@ def get_transactions():
 		}
 		for row in transactions
 	]
-	print(formatted_transactions)
 	return JSONResponse(content={"transactions": formatted_transactions})
 
 @app.delete("/deleteTransaction/{transaction_id}")

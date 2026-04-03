@@ -2,7 +2,7 @@ import { useState } from "react";
 import "../styles/Login.css";
 
 export default function Login({ onLoginSuccess }) {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -14,23 +14,34 @@ export default function Login({ onLoginSuccess }) {
     setIsLoading(true);
 
     try {
-      const endpoint = isSignUp ? "/api/signup" : "/api/login";
+      const endpoint = isSignUp ? "/api/register" : "/api/login";
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Authentication failed");
+        setError(data.detail || data.error || "Authentication failed");
         return;
       }
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      onLoginSuccess(data.user);
+      if (!data.access_token) {
+        setError("Authentication failed");
+        return;
+      }
+
+      const normalizedUser =
+        data.user ?? {
+          username,
+        };
+
+      localStorage.setItem("jmz_finance_access_token", data.access_token);
+      localStorage.setItem("jmz_finance_user", JSON.stringify(normalizedUser));
+
+      onLoginSuccess(normalizedUser);
     } catch (err) {
       setError("An error occurred. Please try again.");
       console.error(err);
@@ -45,12 +56,12 @@ export default function Login({ onLoginSuccess }) {
         <h1>Finance Tracker</h1>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="username">User</label>
             <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
               disabled={isLoading}
             />

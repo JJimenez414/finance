@@ -1,9 +1,12 @@
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+from passlib.context import CryptContext
 
 SECRET_KEY = "yourmom"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -17,3 +20,11 @@ def verify_token(token: str):
         return payload
     except JWTError:
         return None
+
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
