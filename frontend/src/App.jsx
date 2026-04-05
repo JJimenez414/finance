@@ -21,12 +21,34 @@ export default function App() {
   }
 
   useEffect(() => {
-    // Check if user is already logged in
     const token = localStorage.getItem("jmz_finance_access_token");
-    const savedUser = localStorage.getItem("jmz_finance_user");
-    if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
+    if (token) {
+      fetch("/api/getUser", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("Session expired");
+          }
+          return response.json();
+        })
+        .then((data) => {
+          const currentUser = data.user ?? null;
+          if (currentUser) {
+            setUser(currentUser);
+            localStorage.setItem("jmz_finance_user", JSON.stringify(currentUser));
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("jmz_finance_access_token");
+          localStorage.removeItem("jmz_finance_user");
+          setUser(null);
+        })
+        .finally(() => setIsLoading(false));
+
+      return;
     }
+
     setIsLoading(false);
   }, []);
 

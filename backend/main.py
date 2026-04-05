@@ -16,9 +16,18 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 	payload = verify_token(token)
 
 	if payload is None:
-		raise HTTPException(status_code=401, detail="Invalied or expired credentials")
-	print(payload)
+		raise HTTPException(status_code=401, detail="Invalid or expired credentials")
 	return payload["sub"]
+
+
+def get_user_by_username(username: str):
+	conn = get_db_connection()
+	cur = conn.cursor(cursor_factory=RealDictCursor)
+	cur.execute("SELECT id, username FROM users WHERE username = %s", (username,))
+	user = cur.fetchone()
+	cur.close()
+	conn.close()
+	return user
 
 public_router = APIRouter()
 protected_router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -36,9 +45,9 @@ def get_db_connection():
 	conn = psycopg2.connect(
 		host=os.getenv("DB_HOST", "localhost"),
 		database=os.getenv("DB_NAME", "finance_tracker"),
-		user=os.getenv("DB_USER", "josea"),
-		password=os.getenv("DB_PASSWORD", "yourpassword"),
-		port=int(os.getenv("DB_PORT", "5432"))
+		user=os.getenv("DB_USER", ""),
+		password=os.getenv("DB_PASSWORD", ""),
+		port=int(os.getenv("DB_PORT", ""))
 	)
 	return conn
 
@@ -133,13 +142,26 @@ async def register(request: Request):
 		"token_type": "bearer",
 		"user": {
 			"id": user_id,
-			"username": username,
-			"email": username
+			"username": username
+		}
+	}
+
+
+@protected_router.get("/getUser")
+def get_user(current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	return {
+		"user": {
+			"id": user["id"],
+			"username": user["username"]
 		}
 	}
 
 @protected_router.post("/addTransaction")
-async def add_transactions(request: Request):
+async def add_transactions(request: Request, current_username: str = Depends(get_current_user)):
 	response = await request.json()
 
 
@@ -147,21 +169,38 @@ async def add_transactions(request: Request):
 	category = response.get("category")
 	amount = response.get("amount")
 	description = response.get("description", "")
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
 
 	conn = get_db_connection()
 	cur = conn.cursor()
-	cur.execute("INSERT INTO transactions (user_id, transaction_date, category, amount, description) VALUES (%s, %s, %s, %s, %s);", (1, date, category, amount, description))
+	cur.execute(
+		"INSERT INTO transactions (user_id, transaction_date, category, amount, description) VALUES (%s, %s, %s, %s, %s);",
+		(user["id"], date, category, amount, description)
+	)
 	cur.close()
 	conn.commit()
+	conn.close()
 	return {"message": "Transaction added successfully"}
 
 @protected_router.get("/getTransactions")
-def get_transactions():
+def get_transactions(current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
 	conn = get_db_connection()
 	cur = conn.cursor()
-	cur.execute("SELECT id, description, transaction_date, category, amount FROM transactions ORDER BY transaction_date DESC;")
+	cur.execute(
+		"SELECT id, description, transaction_date, category, amount FROM transactions WHERE user_id = %s ORDER BY transaction_date DESC;",
+		(user["id"],)
+	)
 	transactions = cur.fetchall()
 	cur.close()
+	conn.close()
 	# Convert date objects to strings and Decimal to float for JSON serialization
 	formatted_transactions = [
 		{
@@ -176,21 +215,32 @@ def get_transactions():
 	return JSONResponse(content={"transactions": formatted_transactions})
 
 @protected_router.delete("/deleteTransaction/{transaction_id}")
-def delete_transaction(transaction_id: str):
+def delete_transaction(transaction_id: str, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
 	conn = get_db_connection()
 	cur = conn.cursor()
-	cur.execute("DELETE FROM transactions WHERE id = %s;", (transaction_id,))
+	cur.execute("DELETE FROM transactions WHERE id = %s AND user_id = %s;", (transaction_id, user["id"]))
 	cur.close()
 	conn.commit()
+	conn.close()
 	return {"message": "Transaction deleted successfully"}
 
 @protected_router.post("/saveBudget")
-async def save_budget(request: Request):
+async def save_budget(request: Request, current_username: str = Depends(get_current_user)):
 	data = await request.json()
 	
 	total_budget = data.get("total_budget")
 	categories = data.get("categories", [])
-	user_id = 1
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	user_id = user["id"]
 	
 	conn = get_db_connection()
 	cur = conn.cursor()
@@ -236,26 +286,34 @@ async def save_budget(request: Request):
 	
 	conn.commit()
 	cur.close()
+	conn.close()
 	return {"message": "Budget saved successfully"}
 
 @protected_router.get("/getBudget")
-def get_budget():
+def get_budget(current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
 	conn = get_db_connection()
 	cur = conn.cursor()
 	
 	# Get main budget
-	cur.execute("SELECT total_budget FROM user_budget WHERE user_id = %s;", (1,))
+	cur.execute("SELECT total_budget FROM user_budget WHERE user_id = %s;", (user["id"],))
 	budget_row = cur.fetchone()
 	
 	if not budget_row:
 		cur.close()
+		conn.close()
 		return JSONResponse(content={"budget": None})
 	
 	# Get category allocations
-	cur.execute("SELECT category,  budget_amount FROM budgets WHERE user_id = %s;", (1,))
+	cur.execute("SELECT category,  budget_amount FROM budgets WHERE user_id = %s;", (user["id"],))
 	categories = [{"category": str(row[0]), "amount": float(row[1])} for row in cur.fetchall()]
 	
 	cur.close()
+	conn.close()
 	
 	return JSONResponse(content={
 		"budget": {
