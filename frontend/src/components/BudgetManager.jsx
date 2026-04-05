@@ -20,6 +20,11 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  function getAuthHeaders() {
+    const token = localStorage.getItem("jmz_finance_access_token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   useEffect(() => {
     if (!budgetData) {
       setTotalBudget("");
@@ -90,6 +95,7 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({
         total_budget: Number(totalBudget),

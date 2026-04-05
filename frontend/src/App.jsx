@@ -10,7 +10,11 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   function fetchBudget() {
-    fetch("/api/getBudget")
+    const token = localStorage.getItem("jmz_finance_access_token");
+
+    fetch("/api/getBudget", {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then((response) => response.json())
       .then((data) => setBudgetData(data.budget ?? null))
       .catch((error) => console.error("Error loading budget:", error));

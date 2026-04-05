@@ -1,5 +1,6 @@
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, File, UploadFile, Request, Response, HTTPException, status
+from fastapi import FastAPI, APIRouter, File, UploadFile, Request, Response, HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from auth import create_access_token, verify_token, hash_password, verify_password
 import psycopg2
@@ -8,6 +9,19 @@ import os
 import uvicorn
 
 app = FastAPI(title="Basic FastAPI App")
+security = HTTPBearer()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+	token = credentials.credentials
+	payload = verify_token(token)
+
+	if payload is None:
+		raise HTTPException(status_code=401, detail="Invalied or expired credentials")
+	print(payload)
+	return payload["sub"]
+
+public_router = APIRouter()
+protected_router = APIRouter(dependencies=[Depends(get_current_user)])
 
 app.add_middleware(
 	CORSMiddleware,
@@ -28,12 +42,7 @@ def get_db_connection():
 	)
 	return conn
 
-
-@app.get("/")
-def read_root() -> dict[str, str]:
-	return {"message": "Hello from FastAPI"}
-
-@app.post("/login")
+@public_router.post("/login")
 async def login(request: Request):
 	data = await request.json()
 	username = data.get("username", "")
@@ -82,7 +91,7 @@ async def login(request: Request):
 		}
 	}
 
-@app.post("/register")
+@public_router.post("/register")
 async def register(request: Request):
 	data = await request.json()
 	username = data.get("username", "")
@@ -129,9 +138,10 @@ async def register(request: Request):
 		}
 	}
 
-@app.post("/addTransaction")
+@protected_router.post("/addTransaction")
 async def add_transactions(request: Request):
 	response = await request.json()
+
 
 	date = response.get("date")
 	category = response.get("category")
@@ -145,7 +155,7 @@ async def add_transactions(request: Request):
 	conn.commit()
 	return {"message": "Transaction added successfully"}
 
-@app.get("/getTransactions")
+@protected_router.get("/getTransactions")
 def get_transactions():
 	conn = get_db_connection()
 	cur = conn.cursor()
@@ -165,7 +175,7 @@ def get_transactions():
 	]
 	return JSONResponse(content={"transactions": formatted_transactions})
 
-@app.delete("/deleteTransaction/{transaction_id}")
+@protected_router.delete("/deleteTransaction/{transaction_id}")
 def delete_transaction(transaction_id: str):
 	conn = get_db_connection()
 	cur = conn.cursor()
@@ -174,7 +184,7 @@ def delete_transaction(transaction_id: str):
 	conn.commit()
 	return {"message": "Transaction deleted successfully"}
 
-@app.post("/saveBudget")
+@protected_router.post("/saveBudget")
 async def save_budget(request: Request):
 	data = await request.json()
 	
@@ -228,7 +238,7 @@ async def save_budget(request: Request):
 	cur.close()
 	return {"message": "Budget saved successfully"}
 
-@app.get("/getBudget")
+@protected_router.get("/getBudget")
 def get_budget():
 	conn = get_db_connection()
 	cur = conn.cursor()
@@ -253,6 +263,9 @@ def get_budget():
 			"categories": categories
 		}
 	})
+
+app.include_router(public_router)
+app.include_router(protected_router)
 
 if __name__ == "__main__":
 	uvicorn.run(app, host="0.0.0.0", port=8080)

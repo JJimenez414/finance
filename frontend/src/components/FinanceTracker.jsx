@@ -56,8 +56,15 @@ export default function FinanceTracker({ budgetData }) {
   const [purchases, setPurchases] = useState([]);
   const [isOverviewOpen, setIsOverviewOpen] = useState(false);
 
+  function getAuthHeaders() {
+    const token = localStorage.getItem("jmz_finance_access_token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   function fetchTransactions() {
-    fetch("/api/getTransactions")
+    fetch("/api/getTransactions", {
+      headers: getAuthHeaders(),
+    })
       .then((response) => response.json())
       .then((data) => setPurchases(data.transactions))
       .catch((error) => console.error("Error:", error));
@@ -124,6 +131,7 @@ export default function FinanceTracker({ budgetData }) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...getAuthHeaders(),
       },
       body: JSON.stringify(newPurchase),
     })
@@ -140,6 +148,7 @@ export default function FinanceTracker({ budgetData }) {
   function handleDeleteTransaction(transactionId) {
     fetch(`/api/deleteTransaction/${transactionId}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     })
       .then((response) => response.json())
       .then(() => {
