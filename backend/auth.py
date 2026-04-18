@@ -4,7 +4,7 @@ from passlib.context import CryptContext
 
 SECRET_KEY = "yourmom"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 10080
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
