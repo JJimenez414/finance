@@ -1,11 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
 
 const CATEGORIES = [
   "Living",
@@ -24,6 +17,34 @@ const CATEGORY_COLORS = [
   "#ef4444",
   "#06b6d4",
 ];
+
+const CATEGORY_COLOR_MAP = Object.fromEntries(
+  CATEGORIES.map((name, index) => [
+    name,
+    CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+  ])
+);
+
+const HALF_GAUGE = {
+  cx: 120,
+  cy: 120,
+  radius: 90,
+};
+
+function getArcPoint(cx, cy, radius, angle) {
+  const radians = (angle * Math.PI) / 180;
+  return {
+    x: cx + radius * Math.cos(radians),
+    y: cy - radius * Math.sin(radians),
+  };
+}
+
+function getArcPath(cx, cy, radius, startAngle, endAngle) {
+  const start = getArcPoint(cx, cy, radius, startAngle);
+  const end = getArcPoint(cx, cy, radius, endAngle);
+  const largeArcFlag = Math.abs(startAngle - endAngle) > 180 ? 1 : 0;
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
+}
 
 function getTodayInputDate() {
   const now = new Date();
@@ -54,8 +75,8 @@ export default function FinanceTracker({ budgetData }) {
   const [transactionDate, setTransactionDate] = useState(getTodayInputDate());
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [purchases, setPurchases] = useState([]);
-  const [isOverviewOpen, setIsOverviewOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
 
   function getAuthHeaders() {
     const token = localStorage.getItem("jmz_finance_access_token");
@@ -101,15 +122,63 @@ export default function FinanceTracker({ budgetData }) {
     }));
   }, [purchases, budgetByCategory]);
 
-  const pieData = useMemo(
-    () =>
-      byCategory
-        .filter((item) => item.totalSpent > 0)
-        .map((item) => ({
+  const gaugeSegments = useMemo(() => {
+    if (totalBudget <= 0 || totalSpent <= 0) {
+      return [];
+    }
+
+    const spentSweep = Math.min((totalSpent / totalBudget) * 180, 180);
+    const gapAngle = 2.2;
+    let currentAngle = 180;
+
+    return byCategory
+      .filter((item) => item.totalSpent > 0)
+      .map((item) => {
+        const segmentSweep = (item.totalSpent / totalSpent) * spentSweep;
+        const safeGap = Math.min(gapAngle, Math.max(segmentSweep - 0.1, 0));
+        const startAngle = currentAngle - safeGap / 2;
+        const nextAngle = Math.max(currentAngle - segmentSweep, 0);
+        const endAngle = Math.max(nextAngle + safeGap / 2, 0);
+
+        const segment = {
           name: item.name,
-          value: item.totalSpent,
-        })),
-    [byCategory]
+          path: getArcPath(
+            HALF_GAUGE.cx,
+            HALF_GAUGE.cy,
+            HALF_GAUGE.radius,
+            startAngle,
+            endAngle
+          ),
+          startPoint: getArcPoint(
+            HALF_GAUGE.cx,
+            HALF_GAUGE.cy,
+            HALF_GAUGE.radius,
+            startAngle
+          ),
+          endPoint: getArcPoint(
+            HALF_GAUGE.cx,
+            HALF_GAUGE.cy,
+            HALF_GAUGE.radius,
+            endAngle
+          ),
+          color: CATEGORY_COLOR_MAP[item.name],
+        };
+
+        currentAngle = nextAngle;
+        return segment;
+      });
+  }, [byCategory, totalBudget, totalSpent]);
+
+  const fullGaugePath = useMemo(
+    () =>
+      getArcPath(
+        HALF_GAUGE.cx,
+        HALF_GAUGE.cy,
+        HALF_GAUGE.radius,
+        180,
+        0
+      ),
+    []
   );
 
   const activeCategoryTransactions = useMemo(() => {
@@ -152,6 +221,7 @@ export default function FinanceTracker({ budgetData }) {
     setDescription("");
     setTransactionDate(getTodayInputDate());
     setCategory(CATEGORIES[0]);
+    setIsAddTransactionOpen(false);
   }
 
   function handleDeleteTransaction(transactionId) {
@@ -172,141 +242,65 @@ export default function FinanceTracker({ budgetData }) {
     setActiveCategory(null);
   }
 
+  function closeAddTransactionModal() {
+    setIsAddTransactionOpen(false);
+  }
+
   return (
     <main className="dashboard">
-      <h1>Finance Tracker</h1>
-
-      <form className="purchase-form" onSubmit={handleSubmit}>
-        <label>
-          Amount of purchase
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="0.00"
-            required
-          />
-        </label>
-
-        <label>
-          Category
-          <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-          >
-            {CATEGORIES.map((categoryOption) => (
-              <option key={categoryOption} value={categoryOption}>
-                {categoryOption}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Date
-          <input
-            type="date"
-            value={transactionDate}
-            onChange={(event) => setTransactionDate(event.target.value)}
-            required
-          />
-        </label>
-
-        <button type="submit">
-          Add Purchase
-        </button>
-
-        <label className="description-field">
-          Description
-          <input
-            type="text"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="What was this for?"
-          />
-        </label>
-      </form>
-
       <section className="summary">
-        <div className="overview-header">
-          <h2>Budget Overview</h2>
-          <button
-            type="button"
-            className="overview-toggle"
-            aria-expanded={isOverviewOpen}
-            onClick={() => setIsOverviewOpen((prev) => !prev)}
-          >
-            {isOverviewOpen ? "Hide Pie" : "Show Pie"}
-          </button>
-        </div>
+        <h2>Budget Overview</h2>
 
-        <div className="summary-row">
-          <div>
-            <p className="summary-label">Total Spent</p>
-            <p className="total">${totalSpent.toFixed(2)}</p>
-          </div>
-          <div>
-            <p className="summary-label">Remaining Budget</p>
-            <p className={`total ${totalRemaining < 0 ? "negative" : ""}`}>
+        <div className="half-gauge-wrap" aria-label="Category spending progress">
+          <svg
+            className="half-gauge"
+            viewBox="0 0 240 140"
+            role="img"
+            aria-label="Half circle spending progress by category"
+          >
+            <path className="gauge-track" d={fullGaugePath} />
+            {gaugeSegments.map((segment) => (
+              <g key={segment.name}>
+                <path
+                  d={segment.path}
+                  stroke={segment.color}
+                  className="gauge-segment"
+                />
+                <circle
+                  className="gauge-cap"
+                  cx={segment.startPoint.x}
+                  cy={segment.startPoint.y}
+                  r="4"
+                  fill={segment.color}
+                />
+                <circle
+                  className="gauge-cap"
+                  cx={segment.endPoint.x}
+                  cy={segment.endPoint.y}
+                  r="4"
+                  fill={segment.color}
+                />
+              </g>
+            ))}
+          </svg>
+
+          <div className="gauge-center">
+            <p className="gauge-caption">Spent</p>
+            <p className="gauge-spent">${totalSpent.toFixed(2)}</p>
+            <p className="summary-label">Left Over</p>
+            <p className={`gauge-leftover ${totalRemaining < 0 ? "negative" : ""}`}>
               ${totalRemaining.toFixed(2)}
             </p>
           </div>
         </div>
-
-        <div className={`overview-content ${isOverviewOpen ? "open" : ""}`}>
-          <h3 className="chart-title">Spending Distribution</h3>
-          {pieData.length === 0 ? (
-            <p className="empty">No spending data yet.</p>
-          ) : (
-            <>
-              <div className="chart-wrap">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={105}
-                      label={({ name, value }) => `${name}: $${value.toFixed(2)}`}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${entry.name}`}
-                          fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `$${Number(value).toFixed(2)}`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              <ul className="chart-legend">
-                {byCategory.map((item, index) => (
-                  <li key={item.name}>
-                    <span
-                      className="legend-dot"
-                      style={{
-                        backgroundColor:
-                          CATEGORY_COLORS[index % CATEGORY_COLORS.length],
-                      }}
-                    />
-                    <span>{item.name}</span>
-                    <strong>${item.totalSpent.toFixed(2)}</strong>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
       </section>
 
       <section className="categories">
-        <h2>By Category</h2>
+        <div className="categories-header" aria-hidden="true">
+          <span>Category</span>
+          <span>Spent</span>
+          <span>Remain</span>
+        </div>
         <ul>
           {byCategory.map((item) => {
             const status = getCategoryStatus(item.totalSpent, item.budgetAmount);
@@ -318,20 +312,23 @@ export default function FinanceTracker({ budgetData }) {
                 className="category-button"
                 onClick={() => setActiveCategory(item.name)}
               >
-                <div className="category-heading">
-                  <span>{item.name}</span>
+                <div className="category-main">
+                  <span
+                    className="category-bullet"
+                    aria-hidden="true"
+                    style={{ backgroundColor: CATEGORY_COLOR_MAP[item.name] }}
+                  />
+                  <span className="category-name">{item.name}</span>
                   <span className={`status-pill ${status.className}`}>{status.label}</span>
                 </div>
-                <div className="category-metrics">
-                  <span className="category-spent">Spent: ${item.totalSpent.toFixed(2)}</span>
-                  <strong
-                    className={`category-remaining ${
-                      item.budgetAmount - item.totalSpent < 0 ? "negative" : ""
-                    }`}
-                  >
-                    Remaining: ${(item.budgetAmount - item.totalSpent).toFixed(2)}
-                  </strong>
-                </div>
+                <span className="category-spent">${item.totalSpent.toFixed(2)}</span>
+                <strong
+                  className={`category-remaining ${
+                    item.budgetAmount - item.totalSpent < 0 ? "negative" : ""
+                  }`}
+                >
+                  ${(item.budgetAmount - item.totalSpent).toFixed(2)}
+                </strong>
               </button>
             </li>
           );})}
@@ -389,6 +386,95 @@ export default function FinanceTracker({ budgetData }) {
           </section>
         </div>
       )}
+
+      {isAddTransactionOpen && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={closeAddTransactionModal}
+        >
+          <section
+            className="category-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add transaction"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>Add Transaction</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close add transaction popup"
+                onClick={closeAddTransactionModal}
+              >
+                ×
+              </button>
+            </div>
+
+            <form className="purchase-form" onSubmit={handleSubmit}>
+              <label>
+                Amount of purchase
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="0.00"
+                  required
+                />
+              </label>
+
+              <label>
+                Category
+                <select
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value)}
+                >
+                  {CATEGORIES.map((categoryOption) => (
+                    <option key={categoryOption} value={categoryOption}>
+                      {categoryOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Date
+                <input
+                  type="date"
+                  value={transactionDate}
+                  onChange={(event) => setTransactionDate(event.target.value)}
+                  required
+                />
+              </label>
+
+              <button type="submit">
+                Add Purchase
+              </button>
+
+              <label className="description-field">
+                Description
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="What was this for?"
+                />
+              </label>
+            </form>
+          </section>
+        </div>
+      )}
+
+      <button
+        type="button"
+        className="add-transaction-fab"
+        onClick={() => setIsAddTransactionOpen(true)}
+      >
+        +
+      </button>
     </main>
   );
 }
