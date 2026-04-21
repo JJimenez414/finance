@@ -55,6 +55,7 @@ export default function FinanceTracker({ budgetData }) {
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [purchases, setPurchases] = useState([]);
   const [isOverviewOpen, setIsOverviewOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(null);
 
   function getAuthHeaders() {
     const token = localStorage.getItem("jmz_finance_access_token");
@@ -111,6 +112,14 @@ export default function FinanceTracker({ budgetData }) {
     [byCategory]
   );
 
+  const activeCategoryTransactions = useMemo(() => {
+    if (!activeCategory) {
+      return [];
+    }
+
+    return purchases.filter((purchase) => purchase.category === activeCategory);
+  }, [purchases, activeCategory]);
+
   function handleSubmit(event) {
     event.preventDefault();
 
@@ -157,6 +166,10 @@ export default function FinanceTracker({ budgetData }) {
         );
       })
       .catch((error) => console.error("Error:", error));
+  }
+
+  function closeCategoryModal() {
+    setActiveCategory(null);
   }
 
   return (
@@ -300,56 +313,82 @@ export default function FinanceTracker({ budgetData }) {
 
             return (
             <li key={item.name}>
-              <div className="category-heading">
-                <span>{item.name}</span>
-                <span className={`status-pill ${status.className}`}>{status.label}</span>
-              </div>
-              <div className="category-metrics">
-                <span className="category-spent">Spent: ${item.totalSpent.toFixed(2)}</span>
-                <strong
-                  className={`category-remaining ${
-                    item.budgetAmount - item.totalSpent < 0 ? "negative" : ""
-                  }`}
-                >
-                  Remaining: ${(item.budgetAmount - item.totalSpent).toFixed(2)}
-                </strong>
-              </div>
+              <button
+                type="button"
+                className="category-button"
+                onClick={() => setActiveCategory(item.name)}
+              >
+                <div className="category-heading">
+                  <span>{item.name}</span>
+                  <span className={`status-pill ${status.className}`}>{status.label}</span>
+                </div>
+                <div className="category-metrics">
+                  <span className="category-spent">Spent: ${item.totalSpent.toFixed(2)}</span>
+                  <strong
+                    className={`category-remaining ${
+                      item.budgetAmount - item.totalSpent < 0 ? "negative" : ""
+                    }`}
+                  >
+                    Remaining: ${(item.budgetAmount - item.totalSpent).toFixed(2)}
+                  </strong>
+                </div>
+              </button>
             </li>
           );})}
         </ul>
       </section>
 
-      <section className="history">
-        <h2>Purchase History</h2>
-        {purchases.length === 0 ? (
-          <p className="empty">No purchases yet.</p>
-        ) : (
-          <ul>
-            {purchases.map((purchase, index) => (
-              <li
-                key={
-                  purchase.id ??
-                  `${purchase.date}-${purchase.category}-${purchase.amount}-${index}`
-                }
+      {activeCategory && (
+        <div className="modal-backdrop" role="presentation" onClick={closeCategoryModal}>
+          <section
+            className="category-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${activeCategory} transactions`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>{activeCategory} Transactions</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close transactions popup"
+                onClick={closeCategoryModal}
               >
-                <span>${purchase.amount.toFixed(2)}</span>
-                <span>{purchase.description || "-"}</span>
-                <span>{purchase.category}</span>
-                <span>{purchase.date}</span>
-                <button
-                  type="button"
-                  className="delete-button"
-                  aria-label="Delete transaction"
-                  title="Delete transaction"
-                  onClick={() => handleDeleteTransaction(purchase.id)}
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                ×
+              </button>
+            </div>
+
+            {activeCategoryTransactions.length === 0 ? (
+              <p className="empty">No purchases in this category yet.</p>
+            ) : (
+              <ul className="modal-transaction-list">
+                {activeCategoryTransactions.map((purchase, index) => (
+                  <li
+                    key={
+                      purchase.id ??
+                      `${purchase.date}-${purchase.category}-${purchase.amount}-${index}`
+                    }
+                  >
+                    <span>${purchase.amount.toFixed(2)}</span>
+                    <span>{purchase.description || "-"}</span>
+                    <span>{purchase.date}</span>
+                    <button
+                      type="button"
+                      className="delete-button"
+                      aria-label="Delete transaction"
+                      title="Delete transaction"
+                      onClick={() => handleDeleteTransaction(purchase.id)}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
 }
