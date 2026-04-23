@@ -188,6 +188,12 @@ button:hover {
   gap: 16px;
 }
 
+@keyframes gauge-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+
 .half-gauge-wrap {
   position: relative;
   margin-top: 10px;
@@ -203,52 +209,6 @@ button:hover {
   display: block;
 }
 
-.gauge-track,
-.gauge-segment {
-  fill: none;
-  stroke-width: 10;
-  stroke-linecap: round;
-}
-
-.gauge-track {
-  stroke: #e2e8f0;
-}
-
-.gauge-segment {
-  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.45));
-}
-
-.gauge-center {
-  position: absolute;
-  left: 50%;
-  bottom: 2px;
-  transform: translateX(-50%);
-  text-align: center;
-  width: min(100%, 240px);
-}
-
-.gauge-caption {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.gauge-spent,
-.gauge-leftover {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.gauge-center .summary-label {
-  margin-top: 4px;
-}
-
-.gauge-center .summary-label:first-child {
-  margin-top: 0;
-}
 
 .overview-header {
   display: flex;
@@ -259,6 +219,23 @@ button:hover {
 
 .overview-header h2 {
   margin-bottom: 0;
+}
+
+.month-select {
+  width: auto;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.88rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+}
+
+.month-select:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
 }
 
 .overview-toggle {
@@ -678,16 +655,6 @@ button:hover {
     grid-template-columns: 1fr;
   }
 
-  .gauge-center {
-    width: min(100%, 210px);
-    bottom: 0;
-  }
-
-  .gauge-spent,
-  .gauge-leftover {
-    font-size: 1rem;
-  }
-
   .categories li {
     grid-template-columns: 1fr;
     gap: 4px;
@@ -773,14 +740,6 @@ button:hover {
     height: 250px;
   }
 
-  .gauge-center {
-    bottom: -2px;
-  }
-
-  .gauge-spent,
-  .gauge-leftover {
-    font-size: 0.94rem;
-  }
 
 }
 

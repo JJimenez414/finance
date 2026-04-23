@@ -26,9 +26,9 @@ const CATEGORY_COLOR_MAP = Object.fromEntries(
 );
 
 const HALF_GAUGE = {
-  cx: 120,
-  cy: 120,
-  radius: 90,
+  cx: 150,
+  cy: 148,
+  radius: 115,
 };
 
 function getArcPoint(cx, cy, radius, angle) {
@@ -45,6 +45,21 @@ function getArcPath(cx, cy, radius, startAngle, endAngle) {
   const largeArcFlag = Math.abs(startAngle - endAngle) > 180 ? 1 : 0;
   return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
 }
+
+const MONTH_OPTIONS = (() => {
+  const options = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    options.push({
+      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleString("default", { month: "long", year: "numeric" }),
+    });
+  }
+  return options;
+})();
+
+const CURRENT_MONTH = MONTH_OPTIONS[0].value;
 
 function getTodayInputDate() {
   const now = new Date();
@@ -77,6 +92,7 @@ export default function FinanceTracker({ budgetData }) {
   const [purchases, setPurchases] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(CURRENT_MONTH);
 
   function getAuthHeaders() {
     const token = localStorage.getItem("jmz_finance_access_token");
@@ -96,9 +112,14 @@ export default function FinanceTracker({ budgetData }) {
     fetchTransactions();
   }, []);
 
+  const filteredPurchases = useMemo(
+    () => purchases.filter((p) => p.date.startsWith(selectedMonth)),
+    [purchases, selectedMonth]
+  );
+
   const totalSpent = useMemo(
-    () => purchases.reduce((sum, purchase) => sum + purchase.amount, 0),
-    [purchases]
+    () => filteredPurchases.reduce((sum, p) => sum + p.amount, 0),
+    [filteredPurchases]
   );
 
   const budgetByCategory = useMemo(() => {
@@ -115,12 +136,12 @@ export default function FinanceTracker({ budgetData }) {
   const byCategory = useMemo(() => {
     return CATEGORIES.map((name) => ({
       name,
-      totalSpent: purchases
-        .filter((purchase) => purchase.category === name)
-        .reduce((sum, purchase) => sum + purchase.amount, 0),
+      totalSpent: filteredPurchases
+        .filter((p) => p.category === name)
+        .reduce((sum, p) => sum + p.amount, 0),
       budgetAmount: budgetByCategory[name] || 0,
     }));
-  }, [purchases, budgetByCategory]);
+  }, [filteredPurchases, budgetByCategory]);
 
   const gaugeSegments = useMemo(() => {
     if (totalBudget <= 0 || totalSpent <= 0) {
@@ -128,44 +149,27 @@ export default function FinanceTracker({ budgetData }) {
     }
 
     const spentSweep = Math.min((totalSpent / totalBudget) * 180, 180);
-    const gapAngle = 2.2;
     let currentAngle = 180;
 
     return byCategory
       .filter((item) => item.totalSpent > 0)
       .map((item) => {
         const segmentSweep = (item.totalSpent / totalSpent) * spentSweep;
-        const safeGap = Math.min(gapAngle, Math.max(segmentSweep - 0.1, 0));
-        const startAngle = currentAngle - safeGap / 2;
-        const nextAngle = Math.max(currentAngle - segmentSweep, 0);
-        const endAngle = Math.max(nextAngle + safeGap / 2, 0);
+        const startAngle = currentAngle;
+        const endAngle = Math.max(currentAngle - segmentSweep, 0);
 
-        const segment = {
+        currentAngle = endAngle;
+
+        return {
           name: item.name,
-          path: getArcPath(
-            HALF_GAUGE.cx,
-            HALF_GAUGE.cy,
-            HALF_GAUGE.radius,
-            startAngle,
-            endAngle
-          ),
-          startPoint: getArcPoint(
-            HALF_GAUGE.cx,
-            HALF_GAUGE.cy,
-            HALF_GAUGE.radius,
-            startAngle
-          ),
-          endPoint: getArcPoint(
-            HALF_GAUGE.cx,
-            HALF_GAUGE.cy,
-            HALF_GAUGE.radius,
-            endAngle
-          ),
+          // Each path goes from 180° all the way to its own endAngle.
+          // Drawn in reverse order so later (larger) segments paint over earlier ones,
+          // producing clean color boundaries without junction artifacts.
+          path: getArcPath(HALF_GAUGE.cx, HALF_GAUGE.cy, HALF_GAUGE.radius, 180, endAngle),
           color: CATEGORY_COLOR_MAP[item.name],
+          startAngle,
+          endAngle,
         };
-
-        currentAngle = nextAngle;
-        return segment;
       });
   }, [byCategory, totalBudget, totalSpent]);
 
@@ -181,12 +185,18 @@ export default function FinanceTracker({ budgetData }) {
     []
   );
 
+  const spentArcPath = useMemo(() => {
+    if (totalBudget <= 0 || totalSpent <= 0) return null;
+    const sweep = Math.min((totalSpent / totalBudget) * 180, 180);
+    return getArcPath(HALF_GAUGE.cx, HALF_GAUGE.cy, HALF_GAUGE.radius, 180, 180 - sweep);
+  }, [totalBudget, totalSpent]);
+
   const activeCategoryTransactions = useMemo(() => {
     if (!activeCategory) {
       return [];
     }
 
-    return purchases.filter((purchase) => purchase.category === activeCategory);
+    return filteredPurchases.filter((purchase) => purchase.category === activeCategory);
   }, [purchases, activeCategory]);
 
   function handleSubmit(event) {
@@ -249,49 +259,67 @@ export default function FinanceTracker({ budgetData }) {
   return (
     <main className="dashboard">
       <section className="summary">
-        <h2>Budget Overview</h2>
+        <div className="overview-header">
+          <h2>Budget Overview</h2>
+          <select
+            className="month-select"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          >
+            {MONTH_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
 
         <div className="half-gauge-wrap" aria-label="Category spending progress">
           <svg
             className="half-gauge"
-            viewBox="0 0 240 140"
+            viewBox="0 0 300 172"
             role="img"
             aria-label="Half circle spending progress by category"
           >
-            <path className="gauge-track" d={fullGaugePath} />
-            {gaugeSegments.map((segment) => (
-              <g key={segment.name}>
+            <path
+              d={fullGaugePath}
+              fill="none"
+              stroke="#dde3ec"
+              strokeWidth={10}
+              strokeLinecap="butt"
+            />
+            {spentArcPath && (
+              <defs>
+                <mask id="gauge-reveal">
+                  <rect x="0" y="0" width="300" height="172" fill="black" />
+                  <path
+                    key={totalSpent}
+                    d={spentArcPath}
+                    fill="none"
+                    stroke="white"
+                    strokeWidth={12}
+                    pathLength="1"
+                    style={{ strokeDasharray: 1, animation: "gauge-draw 0.8s ease-out both" }}
+                  />
+                </mask>
+              </defs>
+            )}
+            <g mask={spentArcPath ? "url(#gauge-reveal)" : undefined}>
+              {[...gaugeSegments].reverse().map((segment) => (
                 <path
+                  key={segment.name}
                   d={segment.path}
+                  fill="none"
                   stroke={segment.color}
-                  className="gauge-segment"
+                  strokeWidth={10}
+                  strokeLinecap="butt"
                 />
-                <circle
-                  className="gauge-cap"
-                  cx={segment.startPoint.x}
-                  cy={segment.startPoint.y}
-                  r="4"
-                  fill={segment.color}
-                />
-                <circle
-                  className="gauge-cap"
-                  cx={segment.endPoint.x}
-                  cy={segment.endPoint.y}
-                  r="4"
-                  fill={segment.color}
-                />
-              </g>
-            ))}
+              ))}
+            </g>
+            <text x="150" y="104" textAnchor="middle" fontSize="8.5" fontWeight="600" fill="#94a3b8" fontFamily="Arial, sans-serif" letterSpacing="1.2">SPENT</text>
+            <text x="150" y="120" textAnchor="middle" fontSize="15" fontWeight="700" fill="#0f172a" fontFamily="Arial, sans-serif">${totalSpent.toFixed(2)}</text>
+            <line x1="124" y1="128" x2="176" y2="128" stroke="#e2e8f0" strokeWidth="1" />
+            <text x="150" y="138" textAnchor="middle" fontSize="8.5" fontWeight="600" fill="#94a3b8" fontFamily="Arial, sans-serif" letterSpacing="1.2">LEFT OVER</text>
+            <text x="150" y="153" textAnchor="middle" fontSize="13" fontWeight="700" fill={totalRemaining < 0 ? "#dc2626" : "#0f172a"} fontFamily="Arial, sans-serif">${totalRemaining.toFixed(2)}</text>
           </svg>
-
-          <div className="gauge-center">
-            <p className="gauge-caption">Spent</p>
-            <p className="gauge-spent">${totalSpent.toFixed(2)}</p>
-            <p className="summary-label">Left Over</p>
-            <p className={`gauge-leftover ${totalRemaining < 0 ? "negative" : ""}`}>
-              ${totalRemaining.toFixed(2)}
-            </p>
-          </div>
         </div>
       </section>
 
