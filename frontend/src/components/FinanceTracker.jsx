@@ -90,6 +90,7 @@ export default function FinanceTracker({ budgetData }) {
   const [transactionDate, setTransactionDate] = useState(getTodayInputDate());
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [purchases, setPurchases] = useState([]);
+  const [filteredPurchases, setFilteredPurchases] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(CURRENT_MONTH);
@@ -108,14 +109,22 @@ export default function FinanceTracker({ budgetData }) {
       .catch((error) => console.error("Error:", error));
   }
 
+  function fetchMonthTransactions(month) {
+    fetch(`/api/month?month=${month}`, {
+      headers: getAuthHeaders(),
+    })
+      .then((response) => response.json())
+      .then((data) => setFilteredPurchases(data.transactions ?? []))
+      .catch((error) => console.error("Error:", error));
+  }
+
   useEffect(() => {
     fetchTransactions();
   }, []);
 
-  const filteredPurchases = useMemo(
-    () => purchases.filter((p) => p.date.startsWith(selectedMonth)),
-    [purchases, selectedMonth]
-  );
+  useEffect(() => {
+    fetchMonthTransactions(selectedMonth);
+  }, [selectedMonth]);
 
   const totalSpent = useMemo(
     () => filteredPurchases.reduce((sum, p) => sum + p.amount, 0),
@@ -197,7 +206,7 @@ export default function FinanceTracker({ budgetData }) {
     }
 
     return filteredPurchases.filter((purchase) => purchase.category === activeCategory);
-  }, [purchases, activeCategory]);
+  }, [filteredPurchases, activeCategory]);
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -224,7 +233,7 @@ export default function FinanceTracker({ budgetData }) {
       body: JSON.stringify(newPurchase),
     })
       .then((response) => response.json())
-      .then(() => fetchTransactions())
+      .then(() => fetchMonthTransactions(selectedMonth))
       .catch((error) => console.error("Error:", error));
 
     setAmount("");
@@ -240,11 +249,7 @@ export default function FinanceTracker({ budgetData }) {
       headers: getAuthHeaders(),
     })
       .then((response) => response.json())
-      .then(() => {
-        setPurchases((prev) =>
-          prev.filter((purchase) => purchase.id !== transactionId)
-        );
-      })
+      .then(() => fetchMonthTransactions(selectedMonth))
       .catch((error) => console.error("Error:", error));
   }
 
