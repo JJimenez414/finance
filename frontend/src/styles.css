@@ -392,6 +392,32 @@ button:hover {
   background: transparent;
 }
 
+.modal-transaction-list .edit-button {
+  height: auto;
+  width: auto;
+  min-height: 0;
+  min-width: 0;
+  display: inline-flex;
+  position: absolute;
+  top: 10px;
+  right: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font-size: 0.85rem;
+  font-weight: 300;
+  line-height: 1;
+  color: #2563eb;
+  background: transparent;
+}
+
+.modal-transaction-list .edit-button:hover {
+  color: #1d4ed8;
+  background: transparent;
+}
+
 .history .delete-button:hover {
   color: #b91c1c;
   background: transparent;

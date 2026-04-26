@@ -93,6 +93,8 @@ export default function FinanceTracker({ budgetData }) {
   const [filteredPurchases, setFilteredPurchases] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [isUpdateTransactionOpen, setIsUpdateTransactionOpen] = useState(false);
+  const [isCurrentTransaction, setIsCurrentTransaction] = useState({})
   const [selectedMonth, setSelectedMonth] = useState(CURRENT_MONTH);
 
   function getAuthHeaders() {
@@ -253,12 +255,58 @@ export default function FinanceTracker({ budgetData }) {
       .catch((error) => console.error("Error:", error));
   }
 
+  function handleUpdateTransaction(event) {
+    event.preventDefault();
+    
+    const updatedTransaction = {
+      id: isCurrentTransaction.id,
+      amount: Number(amount) || isCurrentTransaction.amount,
+      category: category || isCurrentTransaction.category,
+      description: description || isCurrentTransaction.description,
+      date: transactionDate || isCurrentTransaction.date,
+    };
+
+    fetch("/api/updateTransaction", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(updatedTransaction),
+    })
+      .then((response) => response.json())
+      .then(() => {
+        fetchMonthTransactions(selectedMonth);
+        closeUpdateTransactionModal();
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+
+  function update_transaction(purchase) {
+    setIsUpdateTransactionOpen(true)
+    setIsCurrentTransaction(purchase)
+    setAmount(purchase.amount)
+    setDescription(purchase.description)
+    setTransactionDate(purchase.date)
+    setCategory(purchase.category)
+
+  }
+
   function closeCategoryModal() {
     setActiveCategory(null);
   }
 
   function closeAddTransactionModal() {
     setIsAddTransactionOpen(false);
+  }
+
+  function closeUpdateTransactionModal() {
+    setAmount("");
+    setDescription("");
+    setTransactionDate(getTodayInputDate());
+    setCategory(CATEGORIES[0]);
+    setIsUpdateTransactionOpen(false);
+    setIsCurrentTransaction({})
   }
 
   return (
@@ -405,6 +453,15 @@ export default function FinanceTracker({ budgetData }) {
                     <span>{purchase.date}</span>
                     <button
                       type="button"
+                      className="edit-button"
+                      aria-label="Edit transaction"
+                      title="Edit transaction"
+                      onClick={() => update_transaction(purchase)}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
                       className="delete-button"
                       aria-label="Delete transaction"
                       title="Delete transaction"
@@ -416,6 +473,86 @@ export default function FinanceTracker({ budgetData }) {
                 ))}
               </ul>
             )}
+          </section>
+        </div>
+      )}
+
+      {isUpdateTransactionOpen && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={closeUpdateTransactionModal}
+        >
+          <section
+            className="category-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add transaction"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>Update Transaction</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close add transaction popup"
+                onClick={closeUpdateTransactionModal}
+              >
+                ×
+              </button>
+            </div>
+
+            <form className="purchase-form" onSubmit={handleUpdateTransaction}>
+              <label>
+                Amount of purchase
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={amount || ""}
+                  onChange={(event) => setAmount(event.target.value)}
+                  required
+                />
+              </label>
+
+              <label>
+                Category
+                <select
+                  value={category || ""}
+                  onChange={(event) => setCategory(event.target.value)}
+                >
+                  {CATEGORIES.map((categoryOption) => (
+                    <option key={categoryOption} value={categoryOption}>
+                      {categoryOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Date
+                <input
+                  type="date"
+                  value={transactionDate || ""}
+                  onChange={(event) => setTransactionDate(event.target.value)}
+                  required
+                />
+              </label>
+
+              <button type="submit">
+                Update Purchase
+              </button>
+
+              <label className="description-field">
+                Description
+                <input
+                  type="text"
+                  value={description || ""}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="What was this for?"
+                />
+              </label>
+            </form>
           </section>
         </div>
       )}
