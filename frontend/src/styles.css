@@ -118,7 +118,7 @@ h2 {
   grid-template-columns: 1fr 1fr 1fr 1fr auto;
   gap: 12px;
   align-items: end;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .purchase-form label {
@@ -188,6 +188,72 @@ button:hover {
   gap: 16px;
 }
 
+@keyframes gauge-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+
+.half-gauge-wrap {
+  position: relative;
+  margin-top: 10px;
+  padding-top: 8px;
+  width: min(100%, 560px);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.half-gauge {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.gauge-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+}
+
+.gauge-center-text {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.gauge-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+}
+
+.gauge-amount {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.gauge-divider {
+  width: 40px;
+  height: 1px;
+  background: #e2e8f0;
+  margin: 2px 0;
+}
+
+.gauge-remaining {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+
 .overview-header {
   display: flex;
   align-items: center;
@@ -197,6 +263,23 @@ button:hover {
 
 .overview-header h2 {
   margin-bottom: 0;
+}
+
+.month-select {
+  width: auto;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.88rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+}
+
+.month-select:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
 }
 
 .overview-toggle {
@@ -253,8 +336,8 @@ button:hover {
 
 .category-button {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
   align-items: center;
   width: 100%;
   height: auto;
@@ -264,6 +347,24 @@ button:hover {
   background: transparent;
   color: inherit;
   text-align: left;
+}
+
+.categories-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.categories-header span:nth-child(2),
+.categories-header span:nth-child(3) {
+  text-align: right;
 }
 
 .category-button:hover {
@@ -340,18 +441,26 @@ button:hover {
   background: transparent;
 }
 
-.category-metrics {
-  display: grid;
-  gap: 2px;
-  justify-items: end;
-  text-align: right;
-}
-
-.category-heading {
+.category-main {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.category-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-bullet {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #334155;
+  flex: 0 0 auto;
 }
 
 .status-pill {
@@ -386,13 +495,15 @@ button:hover {
 }
 
 .category-spent {
-  color: #64748b;
+  color: #475569;
   font-size: 0.9rem;
+  text-align: right;
 }
 
 .category-remaining {
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #0f172a;
+  text-align: right;
 }
 
 .chart-wrap {
@@ -402,7 +513,7 @@ button:hover {
 
 .chart-legend {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   display: grid;
   gap: 8px;
@@ -512,6 +623,25 @@ button:hover {
   overflow-wrap: anywhere;
 }
 
+.add-transaction-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 35;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  padding: 0;
+  font-size: 2rem;
+  font-weight: 300;
+  line-height: 1;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.35);
+}
+
+.add-transaction-fab:hover {
+  transform: translateY(-1px);
+}
+
 .empty {
   margin: 0;
   color: #64748b;
@@ -574,9 +704,15 @@ button:hover {
     gap: 4px;
   }
 
+  .categories-header {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 10px;
+    font-size: 0.74rem;
+  }
+
   .category-button {
-    grid-template-columns: 1fr;
-    gap: 4px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 10px;
   }
 
   .modal-transaction-list li {
@@ -585,13 +721,12 @@ button:hover {
     padding-right: 24px;
   }
 
-  .category-metrics {
-    justify-items: start;
-    text-align: left;
+  .category-main {
+    min-width: 0;
   }
 
-  .category-heading {
-    flex-wrap: wrap;
+  .status-pill {
+    display: none;
   }
 
   .summary-item {
@@ -605,6 +740,11 @@ button:hover {
 
   .allocation-item {
     grid-template-columns: 1fr auto;
+  }
+
+  .add-transaction-fab {
+    right: 16px;
+    bottom: 16px;
   }
 }
 
@@ -643,6 +783,8 @@ button:hover {
   .chart-wrap {
     height: 250px;
   }
+
+
 }
 
 /* Budget Manager Styles */
