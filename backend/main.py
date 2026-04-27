@@ -322,6 +322,70 @@ def get_budget(current_username: str = Depends(get_current_user)):
 		}
 	})
 
+@protected_router.get("/month")
+def get_month_data(month: str, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	cur.execute(
+		"SELECT id, description, transaction_date, category, amount "
+		"FROM transactions "
+		"WHERE user_id = %s AND TO_CHAR(transaction_date, 'YYYY-MM') = %s "
+		"ORDER BY transaction_date DESC;",
+		(user["id"], month)
+	)
+	transactions = cur.fetchall()
+	cur.close()
+	conn.close()
+
+	formatted = [
+		{
+			"id": str(row[0]),
+			"description": row[1],
+			"date": str(row[2]),
+			"category": row[3],
+			"amount": float(row[4]),
+		}
+		for row in transactions
+	]
+	return JSONResponse(content={"transactions": formatted})
+
+@protected_router.put("/updateTransaction")
+async def update_transaction(request: Request, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	response = await request.json()
+
+	tran_id = response.get("id")
+	amount = response.get("amount")
+	category = response.get("category")
+	description = response.get("description")
+	date = response.get("date")
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	query = """
+	 	UPDATE transactions
+		SET amount = %s, category = %s, description = %s, transaction_date = %s
+		WHERE id = %s AND user_id = %s;
+	 """
+
+	cur.execute(query, (amount, category, description, date, tran_id, user["id"])) 
+
+	conn.commit()
+	cur.close()
+	conn.close()
+	return {"message": "Transaction updated successfully"}
+
+
 app.include_router(public_router)
 app.include_router(protected_router)
 
