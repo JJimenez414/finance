@@ -209,6 +209,50 @@ button:hover {
   display: block;
 }
 
+.gauge-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+}
+
+.gauge-center-text {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.gauge-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+}
+
+.gauge-amount {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.gauge-divider {
+  width: 40px;
+  height: 1px;
+  background: #e2e8f0;
+  margin: 2px 0;
+}
+
+.gauge-remaining {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
 
 .overview-header {
   display: flex;

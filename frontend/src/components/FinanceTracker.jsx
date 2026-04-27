@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { Doughnut } from "react-chartjs-2";
+import { Chart as ChartJS, ArcElement, Tooltip } from "chart.js";
+
+ChartJS.register(ArcElement, Tooltip);
 
 const CATEGORIES = [
   "Living",
@@ -25,26 +29,19 @@ const CATEGORY_COLOR_MAP = Object.fromEntries(
   ])
 );
 
-const HALF_GAUGE = {
-  cx: 150,
-  cy: 148,
-  radius: 115,
+
+const CHART_OPTIONS = {
+  rotation: 270,
+  circumference: 180,
+  cutout: "80%",
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: { enabled: false },
+  },
+  animation: true,
+  hover: { mode: null },
 };
-
-function getArcPoint(cx, cy, radius, angle) {
-  const radians = (angle * Math.PI) / 180;
-  return {
-    x: cx + radius * Math.cos(radians),
-    y: cy - radius * Math.sin(radians),
-  };
-}
-
-function getArcPath(cx, cy, radius, startAngle, endAngle) {
-  const start = getArcPoint(cx, cy, radius, startAngle);
-  const end = getArcPoint(cx, cy, radius, endAngle);
-  const largeArcFlag = Math.abs(startAngle - endAngle) > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
-}
 
 const MONTH_OPTIONS = (() => {
   const options = [];
@@ -143,53 +140,29 @@ export default function FinanceTracker({ budgetData }) {
     }));
   }, [filteredPurchases, budgetByCategory]);
 
-  const gaugeSegments = useMemo(() => {
-    if (totalBudget <= 0 || totalSpent <= 0) {
-      return [];
+  const chartData = useMemo(() => {
+    const spentCategories = byCategory.filter((item) => item.totalSpent > 0);
+    const remaining = Math.max(totalBudget - totalSpent, 0);
+
+    if (spentCategories.length === 0) {
+      return {
+        datasets: [{ data: [1], backgroundColor: ["#dde3ec"], borderWidth: 0 }],
+      };
     }
 
-    const spentSweep = Math.min((totalSpent / totalBudget) * 180, 180);
-    let currentAngle = 180;
-
-    return byCategory
-      .filter((item) => item.totalSpent > 0)
-      .map((item) => {
-        const segmentSweep = (item.totalSpent / totalSpent) * spentSweep;
-        const startAngle = currentAngle;
-        const endAngle = Math.max(currentAngle - segmentSweep, 0);
-
-        currentAngle = endAngle;
-
-        return {
-          name: item.name,
-          // Each path goes from 180° all the way to its own endAngle.
-          // Drawn in reverse order so later (larger) segments paint over earlier ones,
-          // producing clean color boundaries without junction artifacts.
-          path: getArcPath(HALF_GAUGE.cx, HALF_GAUGE.cy, HALF_GAUGE.radius, 180, endAngle),
-          color: CATEGORY_COLOR_MAP[item.name],
-          startAngle,
-          endAngle,
-        };
-      });
+    return {
+      labels: [...spentCategories.map((item) => item.name), "Remaining"],
+      datasets: [{
+        data: [...spentCategories.map((item) => item.totalSpent), remaining],
+        backgroundColor: [
+          ...spentCategories.map((item) => CATEGORY_COLOR_MAP[item.name]),
+          "#dde3ec",
+        ],
+        borderWidth: 0,
+        hoverOffset: 0,
+      }],
+    };
   }, [byCategory, totalBudget, totalSpent]);
-
-  const fullGaugePath = useMemo(
-    () =>
-      getArcPath(
-        HALF_GAUGE.cx,
-        HALF_GAUGE.cy,
-        HALF_GAUGE.radius,
-        180,
-        0
-      ),
-    []
-  );
-
-  const spentArcPath = useMemo(() => {
-    if (totalBudget <= 0 || totalSpent <= 0) return null;
-    const sweep = Math.min((totalSpent / totalBudget) * 180, 180);
-    return getArcPath(HALF_GAUGE.cx, HALF_GAUGE.cy, HALF_GAUGE.radius, 180, 180 - sweep);
-  }, [totalBudget, totalSpent]);
 
   const activeCategoryTransactions = useMemo(() => {
     if (!activeCategory) {
@@ -273,53 +246,21 @@ export default function FinanceTracker({ budgetData }) {
         </div>
 
         <div className="half-gauge-wrap" aria-label="Category spending progress">
-          <svg
-            className="half-gauge"
-            viewBox="0 0 300 172"
-            role="img"
-            aria-label="Half circle spending progress by category"
-          >
-            <path
-              d={fullGaugePath}
-              fill="none"
-              stroke="#dde3ec"
-              strokeWidth={10}
-              strokeLinecap="butt"
-            />
-            {spentArcPath && (
-              <defs>
-                <mask id="gauge-reveal">
-                  <rect x="0" y="0" width="300" height="172" fill="black" />
-                  <path
-                    key={totalSpent}
-                    d={spentArcPath}
-                    fill="none"
-                    stroke="white"
-                    strokeWidth={12}
-                    pathLength="1"
-                    style={{ strokeDasharray: 1, animation: "gauge-draw 0.8s ease-out both" }}
-                  />
-                </mask>
-              </defs>
-            )}
-            <g mask={spentArcPath ? "url(#gauge-reveal)" : undefined}>
-              {[...gaugeSegments].reverse().map((segment) => (
-                <path
-                  key={segment.name}
-                  d={segment.path}
-                  fill="none"
-                  stroke={segment.color}
-                  strokeWidth={10}
-                  strokeLinecap="butt"
-                />
-              ))}
-            </g>
-            <text x="150" y="104" textAnchor="middle" fontSize="8.5" fontWeight="600" fill="#94a3b8" fontFamily="Arial, sans-serif" letterSpacing="1.2">SPENT</text>
-            <text x="150" y="120" textAnchor="middle" fontSize="15" fontWeight="700" fill="#0f172a" fontFamily="Arial, sans-serif">${totalSpent.toFixed(2)}</text>
-            <line x1="124" y1="128" x2="176" y2="128" stroke="#e2e8f0" strokeWidth="1" />
-            <text x="150" y="138" textAnchor="middle" fontSize="8.5" fontWeight="600" fill="#94a3b8" fontFamily="Arial, sans-serif" letterSpacing="1.2">LEFT OVER</text>
-            <text x="150" y="153" textAnchor="middle" fontSize="13" fontWeight="700" fill={totalRemaining < 0 ? "#dc2626" : "#0f172a"} fontFamily="Arial, sans-serif">${totalRemaining.toFixed(2)}</text>
-          </svg>
+          <div className="gauge-container">
+            <Doughnut data={chartData} options={CHART_OPTIONS} />
+            <div className="gauge-center-text">
+              <span className="gauge-label">SPENT</span>
+              <span className="gauge-amount">${totalSpent.toFixed(2)}</span>
+              <div className="gauge-divider" />
+              <span className="gauge-label">LEFT OVER</span>
+              <span
+                className="gauge-remaining"
+                style={{ color: totalRemaining < 0 ? "#dc2626" : "#0f172a" }}
+              >
+                ${totalRemaining.toFixed(2)}
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
