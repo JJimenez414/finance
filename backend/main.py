@@ -11,7 +11,7 @@ import uvicorn
 
 app = FastAPI(title="Basic FastAPI App")
 security = HTTPBearer()
-load_dotenv()
+load_dotenv("../.env")
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
 	token = credentials.credentials
