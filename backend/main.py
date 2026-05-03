@@ -3,6 +3,7 @@ from fastapi import FastAPI, APIRouter, File, UploadFile, Request, Response, HTT
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from auth import create_access_token, verify_token, hash_password, verify_password
+from dotenv import load_dotenv 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
@@ -10,6 +11,7 @@ import uvicorn
 
 app = FastAPI(title="Basic FastAPI App")
 security = HTTPBearer()
+load_dotenv()
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
 	token = credentials.credentials
@@ -43,8 +45,8 @@ app.add_middleware(
 # Database connection function
 def get_db_connection():
 	conn = psycopg2.connect(
-		host=os.getenv("DB_HOST", "localhost"),
-		database=os.getenv("DB_NAME", "finance_tracker"),
+		host=os.getenv("DB_HOST", ""),
+		database=os.getenv("DB_NAME", ""),
 		user=os.getenv("DB_USER", ""),
 		password=os.getenv("DB_PASSWORD", ""),
 		port=int(os.getenv("DB_PORT", ""))
