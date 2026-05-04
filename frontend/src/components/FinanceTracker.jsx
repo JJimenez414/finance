@@ -93,6 +93,8 @@ export default function FinanceTracker({ budgetData }) {
   const [isUpdateTransactionOpen, setIsUpdateTransactionOpen] = useState(false);
   const [isCurrentTransaction, setIsCurrentTransaction] = useState({})
   const [selectedMonth, setSelectedMonth] = useState(CURRENT_MONTH);
+  const [transactionsLoaded, setTransactionsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   function getAuthHeaders() {
     const token = localStorage.getItem("jmz_finance_access_token");
@@ -113,8 +115,12 @@ export default function FinanceTracker({ budgetData }) {
       headers: getAuthHeaders(),
     })
       .then((response) => response.json())
-      .then((data) => setFilteredPurchases(data.transactions ?? []))
-      .catch((error) => console.error("Error:", error));
+      .then((data) => {
+        setFilteredPurchases(data.transactions ?? []);
+        setTransactionsLoaded(true);
+      })
+      .catch((error) => console.error("Error:", error))
+      .finally(() => setIsLoading(false));
   }
 
   useEffect(() => {
@@ -282,6 +288,15 @@ export default function FinanceTracker({ budgetData }) {
     setIsCurrentTransaction({})
   }
 
+  if (isLoading) {
+    return (
+      <main className="dashboard loading-dashboard">
+        <div className="loading-spinner" />
+        <p className="loading-text">Loading transactions...</p>
+      </main>
+    );
+  }
+
   return (
     <main className="dashboard">
       <section className="summary">
@@ -300,7 +315,7 @@ export default function FinanceTracker({ budgetData }) {
 
         <div className="half-gauge-wrap" aria-label="Category spending progress">
           <div className="gauge-container">
-            <Doughnut data={chartData} options={CHART_OPTIONS} />
+            {transactionsLoaded && <Doughnut data={chartData} options={CHART_OPTIONS} />}
             <div className="gauge-center-text">
               <span className="gauge-label">SPENT</span>
               <span className="gauge-amount">${totalSpent.toFixed(2)}</span>
