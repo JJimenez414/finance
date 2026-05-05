@@ -400,26 +400,31 @@ async def get_monthly_budget(month: str, current_username: str = Depends(get_cur
 	query = """
 		SELECT id, category, budget_amount
 		FROM budgets
-		WHERE user_id = %s and month = %s; 
+		WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s; 
 	"""
-
 	cur.execute(query, (user["id"], month))
+	categories = [{"category": str(row[1]), "amount": float(row[2])} for row in cur.fetchall()]
 
-	budgets = cur.fetchall()
+	query = """
+		SELECT id, total_budget 
+		FROM user_budget
+		WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s;
+	"""
+	cur.execute(query, (user["id"], month))
+	budget_row = cur.fetchone()
 
+	if budget_row == None: 
+		budget_row = [0, 0.00]
+	
 	cur.close()
 	conn.close()
-
-	formatted = [
-		{
-			budget["id"],
-			budget["category"],
-			budget["budget_amount"],
+	
+	return JSONResponse(content={
+		"budget": {
+			"total_budget": float(budget_row[1]),
+			"categories": categories
 		}
-		for budget in budgets
-	]
-
-	return JSONResponse(content={"budgets": formatted})
+	})
 	
 
 app.include_router(public_router)
