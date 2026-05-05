@@ -9,6 +9,15 @@ const CATEGORIES = [
   "Give",
 ];
 
+const CATEGORY_COLORS = {
+  Living: "#2563eb",
+  Food: "#16a34a",
+  Transportation: "#f59e0b",
+  Finance: "#8b5cf6",
+  Miscellaneous: "#ef4444",
+  Give: "#06b6d4",
+};
+
 const MONTH_OPTIONS = (() => {
   const options = [];
   const now = new Date();
@@ -86,17 +95,31 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
     return true;
   }
 
-  function fetchMonthBudget() {
-    fetch("/api/getMonthlyBudget", {
+  function fetchMonthBudget(month) {
+    fetch(`/api/getMonthlyBudget?month=${month}`, {
       headers: getAuthHeaders(),
     })
-      .then((response) => response.json)
+      .then((response) => response.json())
       .then((data) => {
+        console.log(data)
+        if(!data.budget) return;
+        setTotalBudget(String(data.budget.total_budget ?? ""))
+        const budgets = { ...emptyCategoryBudgets };
+        if (data.budget.categories) {
+            data.budget.categories.forEach((cat) => {
+            budgets[cat.category] = String(cat.amount ?? "");
+          });
+        }
+        setCategoryBudgets(budgets);
 
       })
       .catch((error) => console.error("Error:", error))
       .finally()
   }
+
+  useEffect(() => {
+    fetchMonthBudget(selectedMonth);
+  }, [selectedMonth]);
 
   function handleSave() {
     if (!totalBudget || Number(totalBudget) <= 0) {
@@ -143,12 +166,15 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
       });
   }
 
+  const allocated = Object.values(categoryBudgets).reduce((sum, val) => sum + (Number(val) || 0), 0);
+  const unallocated = (Number(totalBudget) || 0) - allocated;
+  const totalNum = Number(totalBudget) || 0;
+
   return (
     <main className="dashboard">
-      <div className="overview-header">
-        <h1 style={{ margin: 0 }}>Budget Manager</h1>
+      <section className="budget-hero">
         <select
-          className="month-select"
+          className="budget-hero-month"
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
         >
@@ -156,11 +182,9 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-      </div>
-
-      <section className="budget-total">
-        <label>
-          Total Budget (Paycheck)
+        <p className="budget-hero-label">Total Budget</p>
+        <div className="budget-hero-input">
+          <span className="budget-hero-symbol">$</span>
           <input
             type="number"
             step="0.01"
@@ -169,61 +193,56 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
             onChange={(event) => handleTotalBudgetChange(event.target.value)}
             placeholder="0.00"
           />
-        </label>
-        {totalBudget && <p className="budget-display">${Number(totalBudget).toFixed(2)}</p>}
+        </div>
+        <p className="budget-hero-sub">Monthly paycheck</p>
       </section>
 
       <section className="category-allocations">
-        <h2>Category Allocations</h2>
-        <div className="allocation-grid">
-          {CATEGORIES.map((category) => (
-            <div key={category} className="allocation-item">
-              <label>
-                {category}
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={categoryBudgets[category] ?? ""}
-                  onChange={(event) =>
-                    handleCategoryChange(category, event.target.value)
-                  }
-                  placeholder="$0.00"
-                />
-              </label>
-              <span className="unit">$</span>
-            </div>
-          ))}
-        </div>
+        <h2>Allocations</h2>
+        <ul className="allocation-list">
+          {CATEGORIES.map((category) => {
+            const pct = totalNum > 0 && categoryBudgets[category]
+              ? ((Number(categoryBudgets[category]) / totalNum) * 100).toFixed(0)
+              : null;
+            return (
+              <li key={category} className="allocation-row">
+                <div className="allocation-row-left">
+                  <span className="allocation-dot" style={{ backgroundColor: CATEGORY_COLORS[category] }} />
+                  <span className="allocation-name">{category}</span>
+                  {pct && <span className="allocation-pct">{pct}%</span>}
+                </div>
+                <div className="allocation-input-wrap">
+                  <span className="unit">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={categoryBudgets[category] ?? ""}
+                    onChange={(event) => handleCategoryChange(category, event.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       <section className="budget-summary">
-        <h2>Summary</h2>
-        <div className="summary-items">
-          <div className="summary-item">
-            <span>Total Budget:</span>
-            <strong>${Number(totalBudget || 0).toFixed(2)}</strong>
+        <div className="budget-stat-row">
+          <div className="budget-stat">
+            <p className="budget-stat-label">Total</p>
+            <p className="budget-stat-value">${totalNum.toFixed(2)}</p>
           </div>
-          <div className="summary-item">
-            <span>Allocated:</span>
-            <strong>
-              ${Object.values(categoryBudgets)
-                .reduce((sum, val) => sum + (Number(val) || 0), 0)
-                .toFixed(2)}
-            </strong>
+          <div className="budget-stat">
+            <p className="budget-stat-label">Allocated</p>
+            <p className="budget-stat-value">${allocated.toFixed(2)}</p>
           </div>
-          <div className="summary-item">
-            <span>Remaining:</span>
-            <strong>
-              $
-              {(
-                Number(totalBudget || 0) -
-                Object.values(categoryBudgets).reduce(
-                  (sum, val) => sum + (Number(val) || 0),
-                  0
-                )
-              ).toFixed(2)}
-            </strong>
+          <div className="budget-stat">
+            <p className="budget-stat-label">Unallocated</p>
+            <p className={`budget-stat-value ${unallocated < 0 ? "negative" : ""}`}>
+              ${unallocated.toFixed(2)}
+            </p>
           </div>
         </div>
       </section>
