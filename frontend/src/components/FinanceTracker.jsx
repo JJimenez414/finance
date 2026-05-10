@@ -14,12 +14,12 @@ const CATEGORIES = [
 ];
 
 const CATEGORY_COLORS = [
-  "#2563eb",
-  "#16a34a",
+  "#14b8a6",
   "#f59e0b",
-  "#8b5cf6",
-  "#ef4444",
-  "#06b6d4",
+  "#3b82f6",
+  "#a78bfa",
+  "#ec4899",
+  "#84cc16",
 ];
 
 const CATEGORY_COLOR_MAP = Object.fromEntries(
@@ -81,7 +81,7 @@ function getCategoryStatus(totalSpent, budgetAmount) {
   return { label: "In Budget", className: "status-in" };
 }
 
-export default function FinanceTracker({ budgetData }) {
+export default function FinanceTracker({ budgetData, onNavigate, isAddTransactionOpen, setIsAddTransactionOpen }) {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [transactionDate, setTransactionDate] = useState(getTodayInputDate());
@@ -89,7 +89,6 @@ export default function FinanceTracker({ budgetData }) {
   const [purchases, setPurchases] = useState([]);
   const [filteredPurchases, setFilteredPurchases] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
-  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [isUpdateTransactionOpen, setIsUpdateTransactionOpen] = useState(false);
   const [isCurrentTransaction, setIsCurrentTransaction] = useState({})
   const [selectedMonth, setSelectedMonth] = useState(CURRENT_MONTH);
@@ -333,42 +332,49 @@ export default function FinanceTracker({ budgetData }) {
       </section>
 
       <section className="categories">
-        <div className="categories-header" aria-hidden="true">
-          <span>Category</span>
-          <span>Spent</span>
-          <span>Remain</span>
-        </div>
         <ul>
           {byCategory.map((item) => {
             const status = getCategoryStatus(item.totalSpent, item.budgetAmount);
+            const pct = item.budgetAmount > 0
+              ? Math.min((item.totalSpent / item.budgetAmount) * 100, 100)
+              : 0;
+            const overBudget = item.totalSpent > item.budgetAmount && item.budgetAmount > 0;
 
             return (
-            <li key={item.name}>
-              <button
-                type="button"
-                className="category-button"
-                onClick={() => setActiveCategory(item.name)}
-              >
-                <div className="category-main">
-                  <span
-                    className="category-bullet"
-                    aria-hidden="true"
-                    style={{ backgroundColor: CATEGORY_COLOR_MAP[item.name] }}
-                  />
-                  <span className="category-name">{item.name}</span>
-                  <span className={`status-pill ${status.className}`}>{status.label}</span>
-                </div>
-                <span className="category-spent">${item.totalSpent.toFixed(2)}</span>
-                <strong
-                  className={`category-remaining ${
-                    item.budgetAmount - item.totalSpent < 0 ? "negative" : ""
-                  }`}
+              <li key={item.name}>
+                <button
+                  type="button"
+                  className="category-button"
+                  onClick={() => setActiveCategory(item.name)}
                 >
-                  ${(item.budgetAmount - item.totalSpent).toFixed(2)}
-                </strong>
-              </button>
-            </li>
-          );})}
+                  <div className="category-row-top">
+                    <div className="category-main">
+                      <span
+                        className="category-bullet"
+                        aria-hidden="true"
+                        style={{ backgroundColor: CATEGORY_COLOR_MAP[item.name] }}
+                      />
+                      <span className="category-name">{item.name}</span>
+                      <span className={`status-pill ${status.className}`}>{status.label}</span>
+                    </div>
+                    <span className="category-budget-line">
+                      <strong>${item.totalSpent.toFixed(2)}</strong>
+                      {" / $"}{item.budgetAmount.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="category-progress-track">
+                    <div
+                      className="category-progress-fill"
+                      style={{
+                        width: `${pct}%`,
+                        backgroundColor: overBudget ? "#ef4444" : CATEGORY_COLOR_MAP[item.name],
+                      }}
+                    />
+                  </div>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
@@ -594,13 +600,6 @@ export default function FinanceTracker({ budgetData }) {
         </div>
       )}
 
-      <button
-        type="button"
-        className="add-transaction-fab"
-        onClick={() => setIsAddTransactionOpen(true)}
-      >
-        +
-      </button>
     </main>
   );
 }

@@ -10,12 +10,12 @@ const CATEGORIES = [
 ];
 
 const CATEGORY_COLORS = {
-  Living: "#2563eb",
-  Food: "#16a34a",
-  Transportation: "#f59e0b",
-  Finance: "#8b5cf6",
-  Miscellaneous: "#ef4444",
-  Give: "#06b6d4",
+  Living: "#14b8a6",
+  Food: "#f59e0b",
+  Transportation: "#3b82f6",
+  Finance: "#a78bfa",
+  Miscellaneous: "#ec4899",
+  Give: "#84cc16",
 };
 
 const MONTH_OPTIONS = (() => {
