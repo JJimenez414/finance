@@ -387,6 +387,45 @@ async def update_transaction(request: Request, current_username: str = Depends(g
 	conn.close()
 	return {"message": "Transaction updated successfully"}
 
+@protected_router.get("/getMonthlyBudget")
+async def get_monthly_budget(month: str, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	query = """
+		SELECT id, category, budget_amount
+		FROM budgets
+		WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s; 
+	"""
+	cur.execute(query, (user["id"], month))
+	categories = [{"category": str(row[1]), "amount": float(row[2])} for row in cur.fetchall()]
+
+	query = """
+		SELECT id, total_budget 
+		FROM user_budget
+		WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s;
+	"""
+	cur.execute(query, (user["id"], month))
+	budget_row = cur.fetchone()
+
+	if budget_row == None: 
+		budget_row = [0, 0.00]
+	
+	cur.close()
+	conn.close()
+	
+	return JSONResponse(content={
+		"budget": {
+			"total_budget": float(budget_row[1]),
+			"categories": categories
+		}
+	})
+	
 
 app.include_router(public_router)
 app.include_router(protected_router)

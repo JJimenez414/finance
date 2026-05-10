@@ -1,6 +1,7 @@
 import FinanceTracker from "./components/FinanceTracker";
 import BudgetManager from "./components/BudgetManager";
 import Login from "./components/Login";
+import NavButton from "./components/NavButton"
 import { useEffect, useState } from "react";
 
 export default function App() {
@@ -8,6 +9,7 @@ export default function App() {
   const [budgetData, setBudgetData] = useState(null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
 
   function fetchBudget() {
     const token = localStorage.getItem("jmz_finance_access_token");
@@ -75,29 +77,9 @@ export default function App() {
 
   return (
     <>
-      <nav className="app-nav">
-        <div className="nav-left">
-          <button
-            className={`nav-button ${currentPage === "tracker" ? "active" : ""}`}
-            onClick={() => setCurrentPage("tracker")}
-          >
-            Finance Tracker
-          </button>
-          <button
-            className={`nav-button ${currentPage === "budget" ? "active" : ""}`}
-            onClick={() => setCurrentPage("budget")}
-          >
-            Budget Manager
-          </button>
-        </div>
-        <div className="nav-right">
-          <button className="logout-button" onClick={handleLogout}>
-            Sign out
-          </button>
-        </div>
-      </nav>
+      <NavButton onNavigate={setCurrentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} />    
       {currentPage === "tracker" ? (
-        <FinanceTracker budgetData={budgetData} />
+        <FinanceTracker budgetData={budgetData} onNavigate={setCurrentPage} isAddTransactionOpen={isAddTransactionOpen} setIsAddTransactionOpen={setIsAddTransactionOpen}/>
       ) : (
         <BudgetManager budgetData={budgetData} onBudgetSaved={fetchBudget} />
       )}
