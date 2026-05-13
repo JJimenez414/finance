@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useBudgetContext } from "../context/BudgetContext";
+import CreateBudgetModal from "./CreateBudgetModal";
 
 const CATEGORIES = [
   "Living",
@@ -31,144 +33,120 @@ const MONTH_OPTIONS = (() => {
   return options;
 })();
 
-export default function BudgetManager({ budgetData, onBudgetSaved }) {
-  const emptyCategoryBudgets = CATEGORIES.reduce(
-    (acc, cat) => ({ ...acc, [cat]: "" }),
-    {}
-  );
+const emptyCategoryBudgets = CATEGORIES.reduce(
+  (acc, cat) => ({ ...acc, [cat]: "" }),
+  {}
+);
 
+export default function BudgetManager() {
   const [totalBudget, setTotalBudget] = useState("");
   const [categoryBudgets, setCategoryBudgets] = useState(emptyCategoryBudgets);
-  const [saved, setSaved] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [savedCategoryBudgets, setSavedCategoryBudgets] = useState(emptyCategoryBudgets);
   const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0].value);
+  const [listOfBudgets, setListOfBudgets] = useState([]);
+  const [selectedBudgetId, setSelectedBudgetId] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { setSelectedBudget } = useBudgetContext();
 
   function getAuthHeaders() {
     const token = localStorage.getItem("jmz_finance_access_token");
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  useEffect(() => {
-    if (!budgetData) {
-      setTotalBudget("");
-      setCategoryBudgets(emptyCategoryBudgets);
-      return;
-    }
-
-    setTotalBudget(String(budgetData.total_budget ?? ""));
-    const budgets = { ...emptyCategoryBudgets };
-    if (budgetData.categories) {
-      budgetData.categories.forEach((cat) => {
-        budgets[cat.category] = String(cat.amount ?? "");
-      });
-    }
-    setCategoryBudgets(budgets);
-  }, [budgetData]);
-
-  function handleTotalBudgetChange(value) {
-    setTotalBudget(value);
-    setSaved(false);
-    setErrorMessage("");
-  }
-
-  function handleCategoryChange(category, value) {
-    setCategoryBudgets((prev) => ({ ...prev, [category]: value }));
-    setSaved(false);
-    setErrorMessage("");
-  }
-
-  function validateAndGetTotal() {
-    const total = Object.values(categoryBudgets).reduce((sum, val) => {
-      const num = Number(val) || 0;
-      return sum + num;
-    }, 0);
-
-    const totalCents = Math.round(total * 100);
-    const budgetCents = Math.round((Number(totalBudget) || 0) * 100);
-
-    if (totalCents !== budgetCents) {
-      setErrorMessage(
-        `Amounts must add up to total budget ($${Number(totalBudget || 0).toFixed(2)}). Current total: $${total.toFixed(2)}`
-      );
-      return null;
-    }
-    return true;
+  function fetchBudgetCategories(budgetId) {
+    fetch(`/api/getBudgetCategories?budget_id=${budgetId}`, {
+      headers: getAuthHeaders(),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const filled = { ...emptyCategoryBudgets };
+        (data.categories ?? []).forEach((cat) => {
+          filled[cat.category] = String(cat.amount ?? "");
+        });
+        setCategoryBudgets(filled);
+        setSavedCategoryBudgets(filled);
+      })
+      .catch((err) => console.error("Error fetching categories:", err));
   }
 
   function fetchMonthBudget(month) {
     fetch(`/api/getMonthlyBudget?month=${month}`, {
       headers: getAuthHeaders(),
     })
-      .then((response) => response.json())
+      .then((res) => res.json())
       .then((data) => {
-        console.log(data)
-        if(!data.budget) return;
-        setTotalBudget(String(data.budget.total_budget ?? ""))
-        const budgets = { ...emptyCategoryBudgets };
-        if (data.budget.categories) {
-            data.budget.categories.forEach((cat) => {
-            budgets[cat.category] = String(cat.amount ?? "");
-          });
+        const buds = data.budgets ?? [];
+        setListOfBudgets(buds);
+        const first = buds[0];
+        if (first) {
+          setSelectedBudgetId(first.id);
+          setTotalBudget(String(first.total_budget ?? ""));
+          setSelectedBudget({ month, budget_id: first.id });
+          fetchBudgetCategories(first.id);
+        } else {
+          setSelectedBudgetId(null);
+          setTotalBudget("");
+          setCategoryBudgets(emptyCategoryBudgets);
+          setSavedCategoryBudgets(emptyCategoryBudgets);
         }
-        setCategoryBudgets(budgets);
-
       })
-      .catch((error) => console.error("Error:", error))
-      .finally()
+      .catch((err) => console.error("Error:", err));
+  }
+
+  function handleBudgetSelect(e) {
+    const id = Number(e.target.value);
+    const bud = listOfBudgets.find((b) => b.id === id);
+    setSelectedBudgetId(id);
+    setTotalBudget(String(bud?.total_budget ?? ""));
+    setSelectedBudget({ month: selectedMonth, budget_id: id });
+    setEditing(false);
+    fetchBudgetCategories(id);
+  }
+
+  function handleCancelEdit() {
+    setCategoryBudgets(savedCategoryBudgets);
+    setEditing(false);
+  }
+
+  function handleSave() {
+    if (!selectedBudgetId) return;
+    setSaving(true);
+
+    const categories = Object.entries(categoryBudgets)
+      .filter(([, v]) => v !== "" && Number(v) >= 0)
+      .map(([category, amount]) => ({ category, amount: Number(amount) }));
+
+    fetch("/api/saveBudget", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({
+        budget_id: selectedBudgetId,
+        month: selectedMonth,
+        total_budget: Number(totalBudget),
+        categories,
+      }),
+    })
+      .then((res) => res.json())
+      .then(() => {
+        setSavedCategoryBudgets(categoryBudgets);
+        setEditing(false);
+      })
+      .catch((err) => console.error("Error saving:", err))
+      .finally(() => setSaving(false));
   }
 
   useEffect(() => {
     fetchMonthBudget(selectedMonth);
   }, [selectedMonth]);
 
-  function handleSave() {
-    if (!totalBudget || Number(totalBudget) <= 0) {
-      setErrorMessage("Please enter a valid total budget");
-      return;
-    }
-
-    setErrorMessage("");
-
-    if (!validateAndGetTotal()) {
-      return;
-    }
-
-    const categoryData = Object.entries(categoryBudgets)
-      .filter(([_, amount]) => amount)
-      .map(([category, amount]) => ({
-        category,
-        amount: Number(amount),
-      }));
-
-    fetch("/api/saveBudget", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({
-        total_budget: Number(totalBudget),
-        categories: categoryData,
-      }),
-    })
-      .then((response) => response.json())
-      .then(() => {
-        setErrorMessage("");
-        setSaved(true);
-        if (onBudgetSaved) {
-          onBudgetSaved();
-        }
-        setTimeout(() => setSaved(false), 3000);
-      })
-      .catch((error) => {
-        setErrorMessage("Failed to save budget. Please try again.");
-        console.error("Error saving budget:", error);
-      });
-  }
-
-  const allocated = Object.values(categoryBudgets).reduce((sum, val) => sum + (Number(val) || 0), 0);
-  const unallocated = (Number(totalBudget) || 0) - allocated;
+  const allocated = Object.values(categoryBudgets).reduce(
+    (sum, val) => sum + (Number(val) || 0),
+    0
+  );
   const totalNum = Number(totalBudget) || 0;
+  const unallocated = totalNum - allocated;
 
   return (
     <main className="dashboard">
@@ -176,7 +154,7 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
         <select
           className="budget-hero-month"
           value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
+          onChange={(e) => { setSelectedMonth(e.target.value); setEditing(false); }}
         >
           {MONTH_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -190,42 +168,108 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
             step="0.01"
             min="0"
             value={totalBudget}
-            onChange={(event) => handleTotalBudgetChange(event.target.value)}
+            onChange={() => {}}
+            readOnly
             placeholder="0.00"
           />
         </div>
-        <p className="budget-hero-sub">Monthly paycheck</p>
+        <div className="budget-hero-select-row">
+          <select
+            className="budget-hero-sub-select"
+            value={selectedBudgetId ?? ""}
+            onChange={handleBudgetSelect}
+          >
+            {listOfBudgets.length === 0 && (
+              <option value="">No budgets for this month</option>
+            )}
+            {listOfBudgets.map((bud) => (
+              <option key={bud.id} value={bud.id}>
+                {bud.description || `Budget #${bud.id}`}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="budget-hero-new-btn"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            +
+          </button>
+        </div>
       </section>
 
+      {isCreateModalOpen && (
+        <CreateBudgetModal
+          selectedMonth={selectedMonth}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreated={() => fetchMonthBudget(selectedMonth)}
+        />
+      )}
+
       <section className="category-allocations">
-        <h2>Allocations</h2>
+        <div className="allocation-card-header">
+          <h2>Allocations</h2>
+          {selectedBudgetId && !editing && (
+            <button type="button" className="bm-edit-btn" onClick={() => setEditing(true)}>
+              Edit
+            </button>
+          )}
+        </div>
         <ul className="allocation-list">
           {CATEGORIES.map((category) => {
-            const pct = totalNum > 0 && categoryBudgets[category]
-              ? ((Number(categoryBudgets[category]) / totalNum) * 100).toFixed(0)
-              : null;
+            const pct =
+              totalNum > 0 && categoryBudgets[category]
+                ? ((Number(categoryBudgets[category]) / totalNum) * 100).toFixed(0)
+                : null;
             return (
               <li key={category} className="allocation-row">
                 <div className="allocation-row-left">
-                  <span className="allocation-dot" style={{ backgroundColor: CATEGORY_COLORS[category] }} />
+                  <span
+                    className="allocation-dot"
+                    style={{ backgroundColor: CATEGORY_COLORS[category] }}
+                  />
                   <span className="allocation-name">{category}</span>
                   {pct && <span className="allocation-pct">{pct}%</span>}
                 </div>
-                <div className="allocation-input-wrap">
-                  <span className="unit">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={categoryBudgets[category] ?? ""}
-                    onChange={(event) => handleCategoryChange(category, event.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
+                {editing ? (
+                  <div className="allocation-input-wrap">
+                    <span className="unit">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={categoryBudgets[category] ?? ""}
+                      onChange={(e) =>
+                        setCategoryBudgets((prev) => ({
+                          ...prev,
+                          [category]: e.target.value,
+                        }))
+                      }
+                      placeholder="0.00"
+                    />
+                  </div>
+                ) : (
+                  <span className="allocation-amount">
+                    ${categoryBudgets[category]
+                      ? Number(categoryBudgets[category]).toFixed(2)
+                      : "0.00"}
+                  </span>
+                )}
               </li>
             );
           })}
         </ul>
+
+        {editing && (
+          <div className="bm-edit-actions">
+            <button type="button" className="bm-cancel-btn" onClick={handleCancelEdit}>
+              Cancel
+            </button>
+            <button type="button" className="bm-save-btn" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="budget-summary">
@@ -246,14 +290,6 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
           </div>
         </div>
       </section>
-
-      <div className="budget-actions">
-        <button onClick={handleSave} className="save-button">
-          Save Budget
-        </button>
-        {errorMessage && <p className="error-message">{errorMessage}</p>}
-        {saved && <p className="success-message">Budget saved successfully!</p>}
-      </div>
     </main>
   );
 }

@@ -231,68 +231,83 @@ def delete_transaction(transaction_id: str, current_username: str = Depends(get_
 	conn.close()
 	return {"message": "Transaction deleted successfully"}
 
-@protected_router.post("/saveBudget")
-async def save_budget(request: Request, current_username: str = Depends(get_current_user)):
+@protected_router.post("/createBudget")
+async def create_budget(request: Request, current_username: str = Depends(get_current_user)):
 	data = await request.json()
-	
+
 	total_budget = data.get("total_budget")
+	month_str = data.get("month")
+	description = data.get("description", "New Budget")
 	categories = data.get("categories", [])
+	month_date = f"{month_str}-01" if month_str else None
+	full_month = f"{month_str}-01 00:00:00" if month_str else None
 	user = get_user_by_username(current_username)
 
 	if user is None:
 		raise HTTPException(status_code=404, detail="User not found")
 
-	user_id = user["id"]
-	
 	conn = get_db_connection()
 	cur = conn.cursor()
-	
-	# Update budget first; insert only if it doesn't exist yet
-	cur.execute(
-		"UPDATE user_budget SET total_budget = %s, period = %s WHERE user_id = %s;",
-		(total_budget, "monthly", user_id)
-	)
-	if cur.rowcount == 0:
-		cur.execute(
-			"INSERT INTO user_budget (user_id, total_budget, period) VALUES (%s, %s, %s);",
-			(user_id, total_budget, "monthly")
-		)
 
-	# Update category allocations; insert only if missing
-	incoming_categories = []
+	cur.execute(
+		"INSERT INTO user_budget (user_id, total_budget, month, description, period) VALUES (%s, %s, %s, %s, %s) RETURNING id;",
+		(user["id"], total_budget, month_date, description, "monthly")
+	)
+	new_budget_id = cur.fetchone()[0]
+
 	for category in categories:
 		name = category.get("category")
 		amount = category.get("amount")
 		if not name:
 			continue
-
-		incoming_categories.append(name)
 		cur.execute(
-			"UPDATE budgets SET budget_amount = %s WHERE user_id = %s AND category = %s;",
-			(amount, user_id, name)
+			"INSERT INTO budgets (user_id, category, budget_amount, month, budget_id) VALUES (%s, %s, %s, %s, %s);",
+			(user["id"], name, amount, full_month, new_budget_id)
 		)
-		if cur.rowcount == 0:
-			cur.execute(
-				"INSERT INTO budgets (user_id, category, budget_amount) VALUES (%s, %s, %s);",
-				(user_id, name, amount)
-			)
 
-	# Remove categories no longer present in payload
-	if incoming_categories:
+	conn.commit()
+	cur.close()
+	conn.close()
+	return {"message": "Budget created successfully"}
+
+@protected_router.post("/saveBudget")
+async def save_budget(request: Request, current_username: str = Depends(get_current_user)):
+	data = await request.json()
+
+	budget_id = data.get("budget_id")
+	categories = data.get("categories", [])
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+	if not budget_id:
+		raise HTTPException(status_code=400, detail="budget_id is required")
+
+	user_id = user["id"]
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	# Delete existing category rows for this budget and reinsert
+	cur.execute("DELETE FROM budgets WHERE budget_id = %s AND user_id = %s;", (budget_id, user_id))
+
+	for category in categories:
+		name = category.get("category")
+		amount = category.get("amount")
+		if not name:
+			continue
 		cur.execute(
-			"DELETE FROM budgets WHERE user_id = %s AND NOT (category = ANY(%s));",
-			(user_id, incoming_categories)
+			"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, %s, %s);",
+			(user_id, name, amount, budget_id)
 		)
-	else:
-		cur.execute("DELETE FROM budgets WHERE user_id = %s;", (user_id,))
-	
+
 	conn.commit()
 	cur.close()
 	conn.close()
 	return {"message": "Budget saved successfully"}
 
 @protected_router.get("/getBudget")
-def get_budget(current_username: str = Depends(get_current_user)):
+def get_budget(month: str, current_username: str = Depends(get_current_user)):
 	user = get_user_by_username(current_username)
 
 	if user is None:
@@ -301,14 +316,22 @@ def get_budget(current_username: str = Depends(get_current_user)):
 	conn = get_db_connection()
 	cur = conn.cursor()
 	
-	# Get main budget
-	cur.execute("SELECT total_budget FROM user_budget WHERE user_id = %s;", (user["id"],))
-	budget_row = cur.fetchone()
-	
-	if not budget_row:
+	# Get main budgets
+	query = """
+		SELECT id, total_budget, description
+		FROM user_budget
+		WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s
+		ORDER BY created_at DESC;
+	"""
+	cur.execute(query, (user["id"], month))
+	budget_rows = cur.fetchall()
+
+	if not budget_rows:
 		cur.close()
 		conn.close()
 		return JSONResponse(content={"budget": None})
+	
+	parsed_budgets = [(row[0], float(row[1]), row[2]) for row in budget_rows]
 	
 	# Get category allocations
 	cur.execute("SELECT category,  budget_amount FROM budgets WHERE user_id = %s;", (user["id"],))
@@ -319,7 +342,7 @@ def get_budget(current_username: str = Depends(get_current_user)):
 	
 	return JSONResponse(content={
 		"budget": {
-			"total_budget": float(budget_row[0]),
+			"total_budgets": parsed_budgets,
 			"categories": categories
 		}
 	})
@@ -397,34 +420,53 @@ async def get_monthly_budget(month: str, current_username: str = Depends(get_cur
 	conn = get_db_connection()
 	cur = conn.cursor()
 
-	query = """
-		SELECT id, category, budget_amount
-		FROM budgets
-		WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s; 
-	"""
-	cur.execute(query, (user["id"], month))
-	categories = [{"category": str(row[1]), "amount": float(row[2])} for row in cur.fetchall()]
-
-	query = """
-		SELECT id, total_budget 
+	cur.execute(
+		"""
+		SELECT id, total_budget, description
 		FROM user_budget
-		WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s;
-	"""
-	cur.execute(query, (user["id"], month))
-	budget_row = cur.fetchone()
+		WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s
+		ORDER BY created_at DESC;
+		""",
+		(user["id"], month)
+	)
+	budget_rows = cur.fetchall()
 
-	if budget_row == None: 
-		budget_row = [0, 0.00]
-	
 	cur.close()
 	conn.close()
-	
-	return JSONResponse(content={
-		"budget": {
-			"total_budget": float(budget_row[1]),
-			"categories": categories
-		}
-	})
+
+	if not budget_rows:
+		return JSONResponse(content={"budgets": []})
+
+	budgets = [
+		{"id": row[0], "total_budget": float(row[1]), "description": row[2] or ""}
+		for row in budget_rows
+	]
+
+	return JSONResponse(content={"budgets": budgets})
+
+@protected_router.get("/getBudgetCategories")
+async def get_budget_categories(budget_id: int, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	cur.execute(
+		"SELECT category, budget_amount FROM budgets WHERE budget_id = %s AND user_id = %s;",
+		(budget_id, user["id"])
+	)
+	categories = [
+		{"category": row[0], "amount": float(row[1])}
+		for row in cur.fetchall()
+	]
+
+	cur.close()
+	conn.close()
+
+	return JSONResponse(content={"categories": categories})
 	
 
 app.include_router(public_router)

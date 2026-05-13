@@ -493,7 +493,7 @@ button:active {
   background: #fff;
   border-radius: 24px 24px 0 0;
   box-shadow: 0 -8px 48px rgba(15, 23, 42, 0.18);
-  padding: 20px;
+  padding: 16px;
 }
 
 .modal-header {
@@ -660,6 +660,7 @@ button:active {
 .fab-item:nth-child(1) { animation-delay: 0ms; }
 .fab-item:nth-child(2) { animation-delay: 40ms; }
 .fab-item:nth-child(3) { animation-delay: 80ms; }
+.fab-item:nth-child(4) { animation-delay: 120ms; }
 
 .fab-item:hover { background: none; opacity: 0.88; }
 .fab-item:active { transform: scale(0.97); }
@@ -689,6 +690,10 @@ button:active {
   font-size: 1.15rem;
   font-weight: 700;
   flex-shrink: 0;
+}
+
+.fab-item-icon--danger {
+  color: #ef4444;
 }
 
 .add-transaction-fab {
@@ -839,6 +844,165 @@ button:active {
 
 /* ─── BUDGET MANAGER ──────────────────────────────── */
 
+.bm-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bm-month-select {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0;
+  height: auto;
+}
+
+.bm-month-select:focus {
+  outline: none;
+}
+
+.bm-new-btn {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  height: auto;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  letter-spacing: 0.01em;
+}
+
+.bm-new-btn:hover {
+  background: #e2e8f0;
+}
+
+.bm-budget-select {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0;
+  height: auto;
+  letter-spacing: 0.02em;
+  text-align: center;
+  width: 100%;
+}
+
+.bm-budget-select option {
+  background: #134e4a;
+  color: white;
+}
+
+.bm-budget-select:focus {
+  outline: none;
+}
+
+.bm-no-budget {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.budget-hero-amount {
+  margin: 6px 0 0;
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: white;
+}
+
+.allocation-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.allocation-card-header .bm-edit-btn {
+  flex-shrink: 0;
+  width: auto;
+}
+
+.allocation-card-header h2 {
+  margin: 0;
+}
+
+.bm-edit-btn {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  height: auto;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bm-edit-btn:hover {
+  background: #e2e8f0;
+}
+
+.bm-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.bm-cancel-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bm-cancel-btn:hover {
+  background: #e2e8f0;
+}
+
+.bm-save-btn {
+  flex: 2;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  background: #0d9488;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bm-save-btn:hover {
+  background: #0f766e;
+}
+
+.bm-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .budget-hero {
   background: linear-gradient(140deg, #134e4a 0%, #0f766e 55%, #0d9488 100%);
   border-radius: 20px;
@@ -926,11 +1090,327 @@ button:active {
   border-bottom-color: rgba(255, 255, 255, 0.8);
 }
 
-.budget-hero-sub {
-  margin: 8px 0 0;
+.budget-hero-select-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.budget-hero-new-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 1.1rem;
+  font-weight: 400;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.budget-hero-new-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.create-budget-alloc-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  margin: 0;
+}
+
+/* ─── CREATE BUDGET MODAL ─────────────────────────── */
+
+.cb-hero {
+  background: linear-gradient(140deg, #134e4a 0%, #0f766e 55%, #0d9488 100%);
+  border-radius: 16px;
+  padding: 20px 20px 16px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.cb-hero-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cb-hero-symbol {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+  align-self: flex-start;
+  padding-top: 6px;
+}
+
+.cb-hero-input {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 2.4rem;
+  font-weight: 800;
+  width: 180px;
+  text-align: center;
+  letter-spacing: -0.03em;
+  padding: 0;
+  height: auto;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.cb-hero-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.cb-hero-input:focus {
+  outline: none;
+}
+
+.cb-hero-input::-webkit-inner-spin-button,
+.cb-hero-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.cb-description-input {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  padding: 10px 0 0;
+  margin-top: 10px;
+  height: auto;
+  border-radius: 0;
+  letter-spacing: 0.01em;
+}
+
+.cb-description-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.cb-description-input:focus {
+  outline: none;
+}
+
+.cb-allocations {
+  margin-bottom: 12px;
+}
+
+.cb-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #94a3b8;
+  margin: 0 0 4px;
+}
+
+.cb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cb-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.cb-row:last-child {
+  border-bottom: none;
+}
+
+.cb-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cb-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cb-input-symbol {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.cb-input-wrap input {
+  border: none;
+  border-bottom: 1.5px solid #e2e8f0;
+  border-radius: 0;
+  padding: 2px 0;
+  width: 72px;
+  text-align: right;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1e293b;
+  background: transparent;
+  height: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.15s;
+}
+
+.cb-input-wrap input:focus {
+  outline: none;
+  border-bottom-color: #0d9488;
+}
+
+.cb-input-wrap input::placeholder {
+  color: #cbd5e1;
+}
+
+.cb-stats {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #f1f5f9;
+  padding: 12px 0;
+  margin-bottom: 12px;
+}
+
+.cb-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.cb-stat-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.cb-stat-value {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cb-submit {
+  width: 100%;
+  height: 46px;
+  border-radius: 12px;
+  background: #0d9488;
+  color: white;
+  font-size: 0.92rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  letter-spacing: 0.01em;
+}
+
+.cb-submit:hover {
+  background: #0f766e;
+}
+
+.cb-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.create-budget-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.create-budget-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.create-budget-amount-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0 14px;
+  background: #f8fafc;
+  transition: border-color 0.15s;
+}
+
+.create-budget-amount-wrap:focus-within {
+  border-color: #0d9488;
+  background: white;
+}
+
+.create-budget-symbol {
+  font-weight: 600;
+  color: #94a3b8;
+  font-size: 1rem;
+}
+
+.create-budget-amount-wrap input {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  height: 38px;
+  font-size: 1rem;
+}
+
+.create-budget-amount-wrap input:focus {
+  outline: none;
+}
+
+.budget-hero-sub-select {
+  display: block;
+  margin: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.55);
   font-size: 0.72rem;
-  opacity: 0.45;
+  font-weight: 500;
+  padding: 4px 12px;
+  height: auto;
+  width: auto;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
   letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.budget-hero-sub-select option {
+  background: #134e4a;
+  color: white;
+}
+
+.budget-hero-sub-select:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .category-allocations {
@@ -951,7 +1431,7 @@ button:active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 16px 0;
   border-bottom: 1px solid #f8fafc;
 }
 
@@ -986,6 +1466,12 @@ button:active {
   border-radius: 999px;
   padding: 2px 8px;
   letter-spacing: 0.02em;
+}
+
+.allocation-amount {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .allocation-input-wrap {
@@ -1046,7 +1532,7 @@ button:active {
 .budget-stat {
   background: #fff;
   border-radius: 16px;
-  padding: 14px 10px;
+  padding: 8px 10px;
   text-align: center;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 20px rgba(0, 0, 0, 0.06);
 }

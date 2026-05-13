@@ -143,7 +143,7 @@ export default function FinanceTracker({ budgetData, onNavigate, isAddTransactio
     return Object.fromEntries(entries);
   }, [budgetData]);
 
-  const totalBudget = Number(budgetData?.total_budget) || 0;
+  const totalBudget = Number(budgetData?.total_budgets[0][1]) || 0;
   const totalRemaining = totalBudget - totalSpent;
 
   const byCategory = useMemo(() => {
