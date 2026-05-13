@@ -1,27 +1,5 @@
 import { useState } from "react";
-
-const CATEGORIES = [
-  "Living",
-  "Food",
-  "Transportation",
-  "Finance",
-  "Miscellaneous",
-  "Give",
-];
-
-const CATEGORY_COLORS = {
-  Living: "#14b8a6",
-  Food: "#f59e0b",
-  Transportation: "#3b82f6",
-  Finance: "#a78bfa",
-  Miscellaneous: "#ec4899",
-  Give: "#84cc16",
-};
-
-const emptyCategoryBudgets = CATEGORIES.reduce(
-  (acc, cat) => ({ ...acc, [cat]: "" }),
-  {}
-);
+import { CATEGORIES, CATEGORY_COLORS, emptyCategoryBudgets, getAuthHeaders } from "../utils/api";
 
 export default function CreateBudgetModal({ selectedMonth, onClose, onCreated }) {
   const [totalBudget, setTotalBudget] = useState("");
@@ -29,11 +7,6 @@ export default function CreateBudgetModal({ selectedMonth, onClose, onCreated })
   const [categoryBudgets, setCategoryBudgets] = useState(emptyCategoryBudgets);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-
-  function getAuthHeaders() {
-    const token = localStorage.getItem("jmz_finance_access_token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
 
   const allocated = Object.values(categoryBudgets).reduce(
     (sum, val) => sum + (Number(val) || 0),

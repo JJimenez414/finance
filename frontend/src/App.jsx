@@ -1,9 +1,10 @@
 import FinanceTracker from "./components/FinanceTracker";
 import BudgetManager from "./components/BudgetManager";
 import Login from "./components/Login";
-import NavButton from "./components/NavButton"
+import NavButton from "./components/NavButton";
 import { useBudgetContext } from "./context/BudgetContext";
 import { useEffect, useState } from "react";
+import { getAuthHeaders } from "./utils/api";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState("tracker");
@@ -11,17 +12,15 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
-  const { selectedBudget, setSelectedBudget } = useBudgetContext();
+  const { selectedBudget } = useBudgetContext();
 
   function fetchBudget() {
-    const token = localStorage.getItem("jmz_finance_access_token");
-
     fetch("/api/getBudget?month=2026-05", {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: getAuthHeaders(),
     })
-      .then((response) => response.json())
-      .then((data) => {console.log("data" + data.budget.total_budgets[0][1]); setBudgetData(data.budget ?? null)})
-      .catch((error) => console.error("Error loading budget:", error));
+      .then((res) => res.json())
+      .then((data) => setBudgetData(data.budget ?? null))
+      .catch((err) => console.error("Error loading budget:", err));
   }
 
   useEffect(() => {
@@ -30,11 +29,9 @@ export default function App() {
       fetch("/api/getUser", {
         headers: { Authorization: `Bearer ${token}` },
       })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("Session expired");
-          }
-          return response.json();
+        .then((res) => {
+          if (!res.ok) throw new Error("Session expired");
+          return res.json();
         })
         .then((data) => {
           const currentUser = data.user ?? null;
@@ -49,17 +46,13 @@ export default function App() {
           setUser(null);
         })
         .finally(() => setIsLoading(false));
-
       return;
     }
-
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    if (user) {
-      fetchBudget();
-    }
+    if (user) fetchBudget();
   }, [user]);
 
   function handleLogout() {
@@ -69,21 +62,25 @@ export default function App() {
     setBudgetData(null);
   }
 
-  if (isLoading) {
-    return <div className="loading">Loading...</div>;
-  }
-
-  if (!user) {
-    return <Login onLoginSuccess={setUser} />;
-  }
+  if (isLoading) return <div className="loading">Loading...</div>;
+  if (!user) return <Login onLoginSuccess={setUser} />;
 
   return (
     <>
-      <NavButton onNavigate={setCurrentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} onLogout={handleLogout} />
+      <NavButton
+        onNavigate={setCurrentPage}
+        setIsAddTransactionOpen={setIsAddTransactionOpen}
+        onLogout={handleLogout}
+      />
       {currentPage === "tracker" ? (
-        <FinanceTracker budgetData={budgetData} onNavigate={setCurrentPage} isAddTransactionOpen={isAddTransactionOpen} setIsAddTransactionOpen={setIsAddTransactionOpen}/>
+        <FinanceTracker
+          budgetData={budgetData}
+          onNavigate={setCurrentPage}
+          isAddTransactionOpen={isAddTransactionOpen}
+          setIsAddTransactionOpen={setIsAddTransactionOpen}
+        />
       ) : (
-        <BudgetManager budgetData={budgetData} onBudgetSaved={fetchBudget} />
+        <BudgetManager />
       )}
     </>
   );

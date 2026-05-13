@@ -1,42 +1,7 @@
 import { useEffect, useState } from "react";
 import { useBudgetContext } from "../context/BudgetContext";
 import CreateBudgetModal from "./CreateBudgetModal";
-
-const CATEGORIES = [
-  "Living",
-  "Food",
-  "Transportation",
-  "Finance",
-  "Miscellaneous",
-  "Give",
-];
-
-const CATEGORY_COLORS = {
-  Living: "#14b8a6",
-  Food: "#f59e0b",
-  Transportation: "#3b82f6",
-  Finance: "#a78bfa",
-  Miscellaneous: "#ec4899",
-  Give: "#84cc16",
-};
-
-const MONTH_OPTIONS = (() => {
-  const options = [];
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    options.push({
-      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: d.toLocaleString("default", { month: "long", year: "numeric" }),
-    });
-  }
-  return options;
-})();
-
-const emptyCategoryBudgets = CATEGORIES.reduce(
-  (acc, cat) => ({ ...acc, [cat]: "" }),
-  {}
-);
+import { CATEGORIES, CATEGORY_COLORS, MONTH_OPTIONS, emptyCategoryBudgets, getAuthHeaders } from "../utils/api";
 
 export default function BudgetManager() {
   const [totalBudget, setTotalBudget] = useState("");
@@ -49,11 +14,6 @@ export default function BudgetManager() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const { setSelectedBudget } = useBudgetContext();
-
-  function getAuthHeaders() {
-    const token = localStorage.getItem("jmz_finance_access_token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
 
   function fetchBudgetCategories(budgetId) {
     fetch(`/api/getBudgetCategories?budget_id=${budgetId}`, {

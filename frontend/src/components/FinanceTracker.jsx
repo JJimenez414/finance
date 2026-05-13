@@ -1,34 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip } from "chart.js";
+import { CATEGORIES, CATEGORY_COLORS, MONTH_OPTIONS, getAuthHeaders } from "../utils/api";
 
 ChartJS.register(ArcElement, Tooltip);
 
-const CATEGORIES = [
-  "Living",
-  "Food",
-  "Transportation",
-  "Finance",
-  "Miscellaneous",
-  "Give",
-];
-
-const CATEGORY_COLORS = [
-  "#14b8a6",
-  "#f59e0b",
-  "#3b82f6",
-  "#a78bfa",
-  "#ec4899",
-  "#84cc16",
-];
-
-const CATEGORY_COLOR_MAP = Object.fromEntries(
-  CATEGORIES.map((name, index) => [
-    name,
-    CATEGORY_COLORS[index % CATEGORY_COLORS.length],
-  ])
-);
-
+const CATEGORY_COLOR_MAP = CATEGORY_COLORS;
 
 const CHART_OPTIONS = {
   rotation: 270,
@@ -42,19 +19,6 @@ const CHART_OPTIONS = {
   animation: true,
   hover: { mode: null },
 };
-
-const MONTH_OPTIONS = (() => {
-  const options = [];
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    options.push({
-      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: d.toLocaleString("default", { month: "long", year: "numeric" }),
-    });
-  }
-  return options;
-})();
 
 const CURRENT_MONTH = MONTH_OPTIONS[0].value;
 
@@ -95,10 +59,6 @@ export default function FinanceTracker({ budgetData, onNavigate, isAddTransactio
   const [transactionsLoaded, setTransactionsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  function getAuthHeaders() {
-    const token = localStorage.getItem("jmz_finance_access_token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
 
   function fetchTransactions() {
     fetch("/api/getTransactions", {

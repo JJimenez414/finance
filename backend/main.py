@@ -1,5 +1,5 @@
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, APIRouter, File, UploadFile, Request, Response, HTTPException, status, Depends
+from fastapi import FastAPI, APIRouter, Request, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from auth import create_access_token, verify_token, hash_password, verify_password
@@ -36,7 +36,7 @@ protected_router = APIRouter(dependencies=[Depends(get_current_user)])
 
 app.add_middleware(
 	CORSMiddleware,
-	allow_origins=["http://localhost:3000", "http://127.0.0.1:5432", "http://raspi.jmzfinance.com:3000", "https://raspi.jmzfinance.com"],
+	allow_origins=["http://localhost:3000", "http://raspi.jmzfinance.com:3000", "https://raspi.jmzfinance.com"],
 	allow_credentials=True,
 	allow_methods=["*"],
 	allow_headers=["*"],
