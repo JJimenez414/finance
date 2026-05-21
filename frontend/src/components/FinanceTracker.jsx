@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip } from "chart.js";
 import { CATEGORIES, CATEGORY_COLORS, MONTH_OPTIONS, getAuthHeaders } from "../utils/api";
+import { useBudgetContext } from "../context/BudgetContext";
 
 ChartJS.register(ArcElement, Tooltip);
 
@@ -45,50 +46,86 @@ function getCategoryStatus(totalSpent, budgetAmount) {
   return { label: "In Budget", className: "status-in" };
 }
 
-export default function FinanceTracker({ budgetData, onNavigate, isAddTransactionOpen, setIsAddTransactionOpen }) {
+export default function FinanceTracker({ onNavigate, isAddTransactionOpen, setIsAddTransactionOpen }) {
+  const { selectedBudget, setSelectedBudget } = useBudgetContext();
+
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [transactionDate, setTransactionDate] = useState(getTodayInputDate());
   const [category, setCategory] = useState(CATEGORIES[0]);
-  const [purchases, setPurchases] = useState([]);
   const [filteredPurchases, setFilteredPurchases] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
   const [isUpdateTransactionOpen, setIsUpdateTransactionOpen] = useState(false);
-  const [isCurrentTransaction, setIsCurrentTransaction] = useState({})
+  const [isCurrentTransaction, setIsCurrentTransaction] = useState({});
   const [selectedMonth, setSelectedMonth] = useState(CURRENT_MONTH);
   const [transactionsLoaded, setTransactionsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [budgetData, setBudgetData] = useState(null);
+  const [listOfBudgets, setListOfBudgets] = useState([]);
+  const [selectedBudgetId, setSelectedBudgetId] = useState(null);
 
-
-  function fetchTransactions() {
-    fetch("/api/getTransactions", {
-      headers: getAuthHeaders(),
-    })
-      .then((response) => response.json())
-      .then((data) => setPurchases(data.transactions))
-      .catch((error) => console.error("Error:", error));
-  }
-
-  function fetchMonthTransactions(month) {
-    fetch(`/api/month?month=${month}`, {
-      headers: getAuthHeaders(),
-    })
-      .then((response) => response.json())
+  function fetchTransactions(month, budgetId, silent = false) {
+    if (!silent) setIsLoading(true);
+    else setIsRefreshing(true);
+    return fetch(`/api/month?month=${month}&budget_id=${budgetId}`, { headers: getAuthHeaders() })
+      .then((res) => res.json())
       .then((data) => {
         setFilteredPurchases(data.transactions ?? []);
         setTransactionsLoaded(true);
       })
-      .catch((error) => console.error("Error:", error))
-      .finally(() => setIsLoading(false));
+      .catch((err) => console.error("Error fetching transactions:", err))
+      .finally(() => { setIsLoading(false); setIsRefreshing(false); });
   }
 
+  // Effect 1: fetch budget list whenever month changes, then auto-select the right budget
   useEffect(() => {
-    fetchTransactions();
-  }, []);
-
-  useEffect(() => {
-    fetchMonthTransactions(selectedMonth);
+    const preferId = selectedBudget?.month === selectedMonth ? selectedBudget?.budget_id : null;
+    setIsLoading(true);
+    fetch(`/api/getMonthlyBudget?month=${selectedMonth}`, { headers: getAuthHeaders() })
+      .then((res) => res.json())
+      .then((data) => {
+        const buds = data.budgets ?? [];
+        setListOfBudgets(buds);
+        if (buds.length === 0) {
+          setSelectedBudgetId(null);
+          setBudgetData(null);
+          setFilteredPurchases([]);
+          setIsLoading(false);
+          return;
+        }
+        const target = buds.find((b) => b.id === preferId) ?? buds[0];
+        setSelectedBudgetId(target.id);
+        // isLoading stays true — effect 2 will clear it after fetching data
+      })
+      .catch((err) => { console.error("Error:", err); setIsLoading(false); });
   }, [selectedMonth]);
+
+  // Effect 2: fetch categories + transactions whenever month or selected budget changes
+  useEffect(() => {
+    if (!selectedBudgetId || listOfBudgets.length === 0) return;
+    const bud = listOfBudgets.find((b) => b.id === selectedBudgetId);
+    if (!bud) return;
+    setSelectedBudget({ month: selectedMonth, budget_id: selectedBudgetId });
+    Promise.all([
+      fetch(`/api/getBudgetCategories?budget_id=${selectedBudgetId}`, { headers: getAuthHeaders() })
+        .then((res) => res.json())
+        .then((catData) => setBudgetData({ total_budget: bud.total_budget, categories: catData.categories ?? [] })),
+      fetch(`/api/month?month=${selectedMonth}&budget_id=${selectedBudgetId}`, { headers: getAuthHeaders() })
+        .then((res) => res.json())
+        .then((data) => { setFilteredPurchases(data.transactions ?? []); setTransactionsLoaded(true); }),
+    ])
+      .catch((err) => console.error("Error:", err))
+      .finally(() => setIsLoading(false));
+  }, [selectedMonth, selectedBudgetId, listOfBudgets]);
+
+  // Effect 3: sync when BudgetManager changes selected budget via context
+  useEffect(() => {
+    const ctxId = selectedBudget?.budget_id;
+    if (!ctxId || ctxId === selectedBudgetId) return;
+    if (selectedBudget.month !== selectedMonth) return;
+    setSelectedBudgetId(ctxId);
+  }, [selectedBudget?.budget_id]);
 
   const totalSpent = useMemo(
     () => filteredPurchases.reduce((sum, p) => sum + p.amount, 0),
@@ -103,7 +140,7 @@ export default function FinanceTracker({ budgetData, onNavigate, isAddTransactio
     return Object.fromEntries(entries);
   }, [budgetData]);
 
-  const totalBudget = Number(budgetData?.total_budgets[0][1]) || 0;
+  const totalBudget = Number(budgetData?.total_budget) || 0;
   const totalRemaining = totalBudget - totalSpent;
 
   const byCategory = useMemo(() => {
@@ -162,6 +199,7 @@ export default function FinanceTracker({ budgetData, onNavigate, isAddTransactio
       description: description.trim(),
       category,
       date: transactionDate,
+      budget_id: selectedBudget?.budget_id ?? null,
     };
 
     fetch("/api/addTransaction", {
@@ -173,7 +211,7 @@ export default function FinanceTracker({ budgetData, onNavigate, isAddTransactio
       body: JSON.stringify(newPurchase),
     })
       .then((response) => response.json())
-      .then(() => fetchMonthTransactions(selectedMonth))
+      .then(() => fetchTransactions(selectedMonth, selectedBudgetId, true))
       .catch((error) => console.error("Error:", error));
 
     setAmount("");
@@ -189,7 +227,7 @@ export default function FinanceTracker({ budgetData, onNavigate, isAddTransactio
       headers: getAuthHeaders(),
     })
       .then((response) => response.json())
-      .then(() => fetchMonthTransactions(selectedMonth))
+      .then(() => fetchTransactions(selectedMonth, selectedBudgetId, true))
       .catch((error) => console.error("Error:", error));
   }
 
@@ -214,7 +252,7 @@ export default function FinanceTracker({ budgetData, onNavigate, isAddTransactio
     })
       .then((response) => response.json())
       .then(() => {
-        fetchMonthTransactions(selectedMonth);
+        fetchTransactions(selectedMonth, selectedBudgetId, true);
         closeUpdateTransactionModal();
       })
       .catch((error) => console.error("Error:", error));
@@ -261,15 +299,30 @@ export default function FinanceTracker({ budgetData, onNavigate, isAddTransactio
       <section className="summary">
         <div className="overview-header">
           <h2>Budget Overview</h2>
-          <select
-            className="month-select"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-          >
-            {MONTH_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          <div className="overview-selectors">
+            <select
+              className="month-select"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+            >
+              {MONTH_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            {listOfBudgets.length > 0 && (
+              <select
+                className="month-select"
+                value={selectedBudgetId ?? ""}
+                onChange={(e) => setSelectedBudgetId(Number(e.target.value))}
+              >
+                {listOfBudgets.map((bud) => (
+                  <option key={bud.id} value={bud.id}>
+                    {bud.description || `Budget #${bud.id}`}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
 
         <div className="half-gauge-wrap" aria-label="Category spending progress">

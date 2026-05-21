@@ -1,5 +1,6 @@
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, APIRouter, Request, HTTPException, status, Depends
+from fastapi import FastAPI, APIRouter, Request, HTTPException, status, Depends, Query
+from typing import Optional
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from auth import create_access_token, verify_token, hash_password, verify_password
@@ -171,6 +172,7 @@ async def add_transactions(request: Request, current_username: str = Depends(get
 	category = response.get("category")
 	amount = response.get("amount")
 	description = response.get("description", "")
+	budget_id = response.get("budget_id")
 	user = get_user_by_username(current_username)
 
 	if user is None:
@@ -179,8 +181,8 @@ async def add_transactions(request: Request, current_username: str = Depends(get
 	conn = get_db_connection()
 	cur = conn.cursor()
 	cur.execute(
-		"INSERT INTO transactions (user_id, transaction_date, category, amount, description) VALUES (%s, %s, %s, %s, %s);",
-		(user["id"], date, category, amount, description)
+		"INSERT INTO transactions (user_id, transaction_date, category, amount, description, budget_id) VALUES (%s, %s, %s, %s, %s, %s);",
+		(user["id"], date, category, amount, description, budget_id)
 	)
 	cur.close()
 	conn.commit()
@@ -276,6 +278,8 @@ async def save_budget(request: Request, current_username: str = Depends(get_curr
 
 	budget_id = data.get("budget_id")
 	categories = data.get("categories", [])
+	month_str = data.get("month")
+	full_month = f"{month_str}-01 00:00:00" if month_str else None
 	user = get_user_by_username(current_username)
 
 	if user is None:
@@ -288,17 +292,24 @@ async def save_budget(request: Request, current_username: str = Depends(get_curr
 	conn = get_db_connection()
 	cur = conn.cursor()
 
-	# Delete existing category rows for this budget and reinsert
+	# Verify this budget belongs to the user before modifying
+	cur.execute("SELECT id FROM user_budget WHERE id = %s AND user_id = %s;", (budget_id, user_id))
+	if cur.fetchone() is None:
+		cur.close()
+		conn.close()
+		raise HTTPException(status_code=403, detail="Budget not found")
+
+	# Delete and reinsert only this budget's category rows
 	cur.execute("DELETE FROM budgets WHERE budget_id = %s AND user_id = %s;", (budget_id, user_id))
 
 	for category in categories:
 		name = category.get("category")
-		amount = category.get("amount")
+		amount = category.get("amount", 0)
 		if not name:
 			continue
 		cur.execute(
-			"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, %s, %s);",
-			(user_id, name, amount, budget_id)
+			"INSERT INTO budgets (user_id, category, budget_amount, month, budget_id) VALUES (%s, %s, %s, %s, %s);",
+			(user_id, name, amount, full_month, budget_id)
 		)
 
 	conn.commit()
@@ -348,7 +359,7 @@ def get_budget(month: str, current_username: str = Depends(get_current_user)):
 	})
 
 @protected_router.get("/month")
-def get_month_data(month: str, current_username: str = Depends(get_current_user)):
+def get_month_data(month: str, budget_id: Optional[int] = Query(default=None), current_username: str = Depends(get_current_user)):
 	user = get_user_by_username(current_username)
 
 	if user is None:
@@ -357,13 +368,23 @@ def get_month_data(month: str, current_username: str = Depends(get_current_user)
 	conn = get_db_connection()
 	cur = conn.cursor()
 
-	cur.execute(
-		"SELECT id, description, transaction_date, category, amount "
-		"FROM transactions "
-		"WHERE user_id = %s AND TO_CHAR(transaction_date, 'YYYY-MM') = %s "
-		"ORDER BY transaction_date DESC;",
-		(user["id"], month)
-	)
+	if budget_id is not None:
+		cur.execute(
+			"SELECT id, description, transaction_date, category, amount "
+			"FROM transactions "
+			"WHERE user_id = %s AND TO_CHAR(transaction_date, 'YYYY-MM') = %s AND budget_id = %s "
+			"ORDER BY transaction_date DESC;",
+			(user["id"], month, budget_id)
+		)
+	else:
+		cur.execute(
+			"SELECT id, description, transaction_date, category, amount "
+			"FROM transactions "
+			"WHERE user_id = %s AND TO_CHAR(transaction_date, 'YYYY-MM') = %s "
+			"ORDER BY transaction_date DESC;",
+			(user["id"], month)
+		)
+
 	transactions = cur.fetchall()
 	cur.close()
 	conn.close()

@@ -13,10 +13,11 @@ export default function BudgetManager() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const { setSelectedBudget } = useBudgetContext();
+  const [loading, setLoading] = useState(true);
+  const { selectedBudget, setSelectedBudget } = useBudgetContext();
 
   function fetchBudgetCategories(budgetId) {
-    fetch(`/api/getBudgetCategories?budget_id=${budgetId}`, {
+    return fetch(`/api/getBudgetCategories?budget_id=${budgetId}`, {
       headers: getAuthHeaders(),
     })
       .then((res) => res.json())
@@ -27,11 +28,11 @@ export default function BudgetManager() {
         });
         setCategoryBudgets(filled);
         setSavedCategoryBudgets(filled);
-      })
-      .catch((err) => console.error("Error fetching categories:", err));
+      });
   }
 
-  function fetchMonthBudget(month) {
+  function fetchMonthBudget(month, preferBudgetId = null) {
+    setLoading(true);
     fetch(`/api/getMonthlyBudget?month=${month}`, {
       headers: getAuthHeaders(),
     })
@@ -39,20 +40,22 @@ export default function BudgetManager() {
       .then((data) => {
         const buds = data.budgets ?? [];
         setListOfBudgets(buds);
-        const first = buds[0];
-        if (first) {
-          setSelectedBudgetId(first.id);
-          setTotalBudget(String(first.total_budget ?? ""));
-          setSelectedBudget({ month, budget_id: first.id });
-          fetchBudgetCategories(first.id);
-        } else {
+        if (buds.length === 0) {
           setSelectedBudgetId(null);
           setTotalBudget("");
           setCategoryBudgets(emptyCategoryBudgets);
           setSavedCategoryBudgets(emptyCategoryBudgets);
+          return;
         }
+        const match = preferBudgetId && buds.find((b) => b.id === preferBudgetId);
+        const target = match || buds[0];
+        setSelectedBudgetId(target.id);
+        setTotalBudget(String(target.total_budget ?? ""));
+        setSelectedBudget({ month, budget_id: target.id });
+        return fetchBudgetCategories(target.id);
       })
-      .catch((err) => console.error("Error:", err));
+      .catch((err) => console.error("Error:", err))
+      .finally(() => setLoading(false));
   }
 
   function handleBudgetSelect(e) {
@@ -74,9 +77,10 @@ export default function BudgetManager() {
     if (!selectedBudgetId) return;
     setSaving(true);
 
-    const categories = Object.entries(categoryBudgets)
-      .filter(([, v]) => v !== "" && Number(v) >= 0)
-      .map(([category, amount]) => ({ category, amount: Number(amount) }));
+    const categories = CATEGORIES.map((category) => ({
+      category,
+      amount: Number(categoryBudgets[category]) || 0,
+    }));
 
     fetch("/api/saveBudget", {
       method: "POST",
@@ -84,21 +88,20 @@ export default function BudgetManager() {
       body: JSON.stringify({
         budget_id: selectedBudgetId,
         month: selectedMonth,
-        total_budget: Number(totalBudget),
         categories,
       }),
     })
       .then((res) => res.json())
-      .then(() => {
-        setSavedCategoryBudgets(categoryBudgets);
-        setEditing(false);
-      })
+      .then(() => fetchBudgetCategories(selectedBudgetId))
+      .then(() => setEditing(false))
       .catch((err) => console.error("Error saving:", err))
       .finally(() => setSaving(false));
   }
 
   useEffect(() => {
-    fetchMonthBudget(selectedMonth);
+    // If context has a budget for this month, prefer it on initial load
+    const contextBudgetId = selectedBudget?.month === selectedMonth ? selectedBudget?.budget_id : null;
+    fetchMonthBudget(selectedMonth, contextBudgetId);
   }, [selectedMonth]);
 
   const allocated = Object.values(categoryBudgets).reduce(
@@ -107,6 +110,14 @@ export default function BudgetManager() {
   );
   const totalNum = Number(totalBudget) || 0;
   const unallocated = totalNum - allocated;
+
+  if (loading) {
+    return (
+      <main className="dashboard loading-dashboard">
+        <div className="loading-spinner" />
+      </main>
+    );
+  }
 
   return (
     <main className="dashboard">

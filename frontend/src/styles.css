@@ -202,6 +202,13 @@ button:active {
   gap: 10px;
 }
 
+.overview-selectors {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
 .overview-header h2 {
   margin-bottom: 0;
 }
