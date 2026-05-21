@@ -2,18 +2,25 @@ from dotenv import load_dotenv
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
+from logger import get_logger
 
 load_dotenv("../.env")
 
+logger = get_logger("db")
+
 def get_db_connection():
-	conn = psycopg2.connect(
-		host=os.getenv("DB_HOST", ""),
-		database=os.getenv("DB_NAME", ""),
-		user=os.getenv("DB_USER", ""),
-		password=os.getenv("DB_PASSWORD", ""),
-		port=int(os.getenv("DB_PORT", ""))
-	)
-	return conn
+	try:
+		conn = psycopg2.connect(
+			host=os.getenv("DB_HOST", ""),
+			database=os.getenv("DB_NAME", ""),
+			user=os.getenv("DB_USER", ""),
+			password=os.getenv("DB_PASSWORD", ""),
+			port=int(os.getenv("DB_PORT", ""))
+		)
+		return conn
+	except Exception as e:
+		logger.error("DB connection failed: %s", e)
+		raise
 
 def get_user_by_username(username: str):
 	conn = get_db_connection()
