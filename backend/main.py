@@ -258,6 +258,70 @@ def get_month_data(month: str, budget_id: Optional[int] = Query(default=None), c
 	]
 	return JSONResponse(content={"transactions": formatted})
 
+@protected_router.put("/updateTransaction")
+async def update_transaction(request: Request, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	response = await request.json()
+
+	tran_id = response.get("id")
+	amount = response.get("amount")
+	category = response.get("category")
+	description = response.get("description")
+	date = response.get("date")
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	query = """
+	 	UPDATE transactions
+		SET amount = %s, category = %s, description = %s, transaction_date = %s
+		WHERE id = %s AND user_id = %s;
+	 """
+
+	cur.execute(query, (amount, category, description, date, tran_id, user["id"])) 
+
+	conn.commit()
+	cur.close()
+	conn.close()
+	return {"message": "Transaction updated successfully"}
+
+@protected_router.get("/getMonthlyBudget")
+async def get_monthly_budget(month: str, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	query = """
+		SELECT id, category, budget_amount
+		FROM budgets
+		WHERE user_id = %s and month = %s; 
+	"""
+
+	cur.execute(query, (user["id"], month))
+
+	budgets = cur.fetchall()
+
+	cur.close()
+	conn.close()
+
+	formatted = [
+		{
+			budget["id"],
+			budget["category"],
+			budget["budget_amount"],
+		}
+		for budget in budgets
+	]
+
+	return JSONResponse(content={"budgets": formatted})
+	
 
 app.include_router(public_router)
 app.include_router(protected_router)

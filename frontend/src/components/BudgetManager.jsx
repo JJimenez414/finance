@@ -9,6 +9,19 @@ const CATEGORIES = [
   "Give",
 ];
 
+const MONTH_OPTIONS = (() => {
+  const options = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    options.push({
+      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleString("default", { month: "long", year: "numeric" }),
+    });
+  }
+  return options;
+})();
+
 export default function BudgetManager({ budgetData, onBudgetSaved }) {
   const emptyCategoryBudgets = CATEGORIES.reduce(
     (acc, cat) => ({ ...acc, [cat]: "" }),
@@ -19,6 +32,7 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
   const [categoryBudgets, setCategoryBudgets] = useState(emptyCategoryBudgets);
   const [saved, setSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0].value);
 
   function getAuthHeaders() {
     const token = localStorage.getItem("jmz_finance_access_token");
@@ -72,6 +86,18 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
     return true;
   }
 
+  function fetchMonthBudget() {
+    fetch("/api/getMonthlyBudget", {
+      headers: getAuthHeaders(),
+    })
+      .then((response) => response.json)
+      .then((data) => {
+
+      })
+      .catch((error) => console.error("Error:", error))
+      .finally()
+  }
+
   function handleSave() {
     if (!totalBudget || Number(totalBudget) <= 0) {
       setErrorMessage("Please enter a valid total budget");
@@ -119,7 +145,18 @@ export default function BudgetManager({ budgetData, onBudgetSaved }) {
 
   return (
     <main className="dashboard">
-      <h1>Budget Manager</h1>
+      <div className="overview-header">
+        <h1 style={{ margin: 0 }}>Budget Manager</h1>
+        <select
+          className="month-select"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
+        >
+          {MONTH_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
 
       <section className="budget-total">
         <label>
