@@ -18,6 +18,7 @@ from db import (
 	db_get_monthly_budget,
 	db_get_budget_categories,
 	db_get_month_data,
+	db_get_finance_data
 )
 import uvicorn
 from logger import get_logger
@@ -241,6 +242,15 @@ def get_month_data(month: str, budget_id: Optional[int] = Query(default=None), c
 	]
 	return JSONResponse(content={"transactions": formatted})
 
+@protected_router.get("/get_finance_data")
+def get_finance_data(month: str, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	data = db_get_finance_data(user["id"], month)
+
+	logger.info("GET /get_finance_data — returned %d len dictionary", len(data))
+	
+	return data
 
 app.include_router(public_router)
 app.include_router(protected_router)
