@@ -6,7 +6,7 @@ from logger import get_logger
 
 load_dotenv("../.env")
 
-logger = get_logger("db")
+logger = get_logger("DATABASE")
 
 def get_db_connection():
 	try:
@@ -72,18 +72,6 @@ def db_add_transaction(user_id, date, category, amount, description, budget_id):
 	conn.commit()
 	cur.close()
 	conn.close()
-
-def db_get_transactions(user_id) -> list:
-	conn = get_db_connection()
-	cur = conn.cursor()
-	cur.execute(
-		"SELECT id, description, transaction_date, category, amount FROM transactions WHERE user_id = %s ORDER BY transaction_date DESC;",
-		(user_id,)
-	)
-	rows = cur.fetchall()
-	cur.close()
-	conn.close()
-	return rows
 
 def db_delete_transaction(transaction_id, user_id):
 	conn = get_db_connection()
@@ -191,6 +179,9 @@ def db_get_monthly_budget(user_id, month: str) -> list:
 	rows = cur.fetchall()
 	cur.close()
 	conn.close()
+
+	logger.info("USER ID: %s, TOTAL BUDGET: %s, DESCRIPTION: %s", rows[0][0], rows[0][1], rows[0][2])
+
 	return [{"id": row[0], "total_budget": float(row[1]), "description": row[2] or ""} for row in rows]
 
 def db_get_budget_categories(budget_id, user_id) -> list:
