@@ -109,7 +109,7 @@ async def add_transaction(request: Request, current_username: str = Depends(get_
 		logger.warning("POST /addTransaction — user not found: %s", current_username)
 		raise HTTPException(status_code=404, detail="User not found")
 
-	db_add_transaction(
+	new_id = db_add_transaction(
 		user["id"],
 		data.get("date"),
 		data.get("category"),
@@ -118,7 +118,7 @@ async def add_transaction(request: Request, current_username: str = Depends(get_
 		data.get("budget_id"),
 	)
 	logger.info("POST /addTransaction — user=%s category=%s amount=%s budget_id=%s", current_username, data.get("category"), data.get("amount"), data.get("budget_id"))
-	return {"message": "Transaction added successfully"}
+	return {"message": "Transaction added successfully", "id": new_id}
 
 @protected_router.delete("/deleteTransaction/{transaction_id}")
 def delete_transaction(transaction_id: str, current_username: str = Depends(get_current_user)):
