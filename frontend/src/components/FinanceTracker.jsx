@@ -182,14 +182,23 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
   );
 
   function handleAdd(vals) {
-    const newTransaction = { id: crypto.randomUUID(), budget_id: currentBudgetID, ...vals };
+    const tempID = crypto.randomUUID();
+    const newTransaction = { id: tempID, budget_id: currentBudgetID, ...vals };
     setCurrentTransactions((prev) => [newTransaction, ...prev]);
     setIsAddTransactionOpen(false);
     fetch("/api/addTransaction", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(newTransaction),
-    }).catch(() => setCurrentTransactions((prev) => prev.filter((t) => t.id !== newTransaction.id)));
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        // swap the temporary UUID for the real database ID
+        setCurrentTransactions((prev) =>
+          prev.map((t) => t.id === tempID ? { ...t, id: data.id } : t)
+        );
+      })
+      .catch(() => setCurrentTransactions((prev) => prev.filter((t) => t.id !== tempID)));
   }
 
   function handleUpdate(vals) {
