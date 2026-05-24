@@ -1,26 +1,16 @@
 import FinanceTracker from "./components/FinanceTracker";
 import BudgetManager from "./components/BudgetManager";
 import Login from "./components/Login";
-import NavButton from "./components/NavButton"
+import NavButton from "./components/NavButton";
+import LoadingScreen from "./components/LoadingScreen";
+import { BudgetProvider } from "./context/FinanceContext";
 import { useEffect, useState } from "react";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState("tracker");
-  const [budgetData, setBudgetData] = useState(null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
-
-  function fetchBudget() {
-    const token = localStorage.getItem("jmz_finance_access_token");
-
-    fetch("/api/getBudget", {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((response) => response.json())
-      .then((data) => setBudgetData(data.budget ?? null))
-      .catch((error) => console.error("Error loading budget:", error));
-  }
 
   useEffect(() => {
     const token = localStorage.getItem("jmz_finance_access_token");
@@ -29,9 +19,7 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((response) => {
-          if (!response.ok) {
-            throw new Error("Session expired");
-          }
+          if (!response.ok) throw new Error("Session expired");
           return response.json();
         })
         .then((data) => {
@@ -47,28 +35,22 @@ export default function App() {
           setUser(null);
         })
         .finally(() => setIsLoading(false));
-
       return;
     }
-
     setIsLoading(false);
   }, []);
-
-  useEffect(() => {
-    if (user) {
-      fetchBudget();
-    }
-  }, [user]);
 
   function handleLogout() {
     localStorage.removeItem("jmz_finance_access_token");
     localStorage.removeItem("jmz_finance_user");
+    localStorage.removeItem("finance_month");
+    localStorage.removeItem("finance_budget_id");
+    localStorage.removeItem("finance_cache");
     setUser(null);
-    setBudgetData(null);
   }
 
   if (isLoading) {
-    return <div className="loading">Loading...</div>;
+    return <LoadingScreen />;
   }
 
   if (!user) {
@@ -76,13 +58,13 @@ export default function App() {
   }
 
   return (
-    <>
-      <NavButton onNavigate={setCurrentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} />    
+    <BudgetProvider>
+      <NavButton onNavigate={setCurrentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} onLogout={handleLogout} />
       {currentPage === "tracker" ? (
-        <FinanceTracker isAddTransactionOpen={isAddTransactionOpen} setIsAddTransactionOpen={setIsAddTransactionOpen}/>
+        <FinanceTracker isAddTransactionOpen={isAddTransactionOpen} setIsAddTransactionOpen={setIsAddTransactionOpen} />
       ) : (
-        <BudgetManager onBudgetSaved={fetchBudget} />
+        <BudgetManager />
       )}
-    </>
+    </BudgetProvider>
   );
 }

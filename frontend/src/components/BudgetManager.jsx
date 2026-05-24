@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, AlertTriangle } from "lucide-react";
+import LoadingScreen from "./LoadingScreen";
+import { useBudgetContext } from "../context/useBudgetContext";
 
 const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
 
@@ -67,47 +69,41 @@ function AllocationRing({ allocated, total }) {
 
 const empty = () => CATEGORIES.reduce((a, c) => ({ ...a, [c]: "" }), {});
 
-export default function BudgetManager({ onBudgetSaved }) {
+function authHeaders() {
+  const t = localStorage.getItem("jmz_finance_access_token");
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+export default function BudgetManager() {
+  const {
+    currentMonth,
+    setCurrentMonth,
+    currentBudgetID,
+    selectBudget,
+    currentCategories,
+    setCurrentCategories,
+    allBudgets,
+    setAllBudgets,
+    isLoading,
+  } = useBudgetContext();
+
   const [totalBudget, setTotalBudget] = useState("");
   const [cats, setCats]               = useState(empty());
-  const [monthBudgetId, setMonthBudgetId] = useState(null);
   const [saved, setSaved]             = useState(false);
   const [error, setError]             = useState("");
-  const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0].value);
 
-  function authHeaders() {
-    const t = localStorage.getItem("jmz_finance_access_token");
-    return t ? { Authorization: `Bearer ${t}` } : {};
-  }
+  // Sync local edit state when context data changes (e.g. month switch)
+  useEffect(() => {
+    const budget = allBudgets[currentBudgetID];
+    setTotalBudget(budget ? String(budget.budget_amount) : "");
+  }, [currentBudgetID, allBudgets]);
 
   useEffect(() => {
-    fetch(`/api/getMonthlyBudget?month=${selectedMonth}`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then((data) => {
-        const budget = data.budgets?.[0] ?? null;
-        if (!budget) {
-          setTotalBudget("");
-          setCats(empty());
-          setMonthBudgetId(null);
-          return;
-        }
-        setTotalBudget(String(budget.total_budget ?? ""));
-        setMonthBudgetId(budget.id);
-      })
-      .catch(console.error);
-  }, [selectedMonth]);
-
-  useEffect(() => {
-    if (!monthBudgetId) { setCats(empty()); return; }
-    fetch(`/api/getBudgetCategories?budget_id=${monthBudgetId}`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then((data) => {
-        const b = empty();
-        (data.categories ?? []).forEach((c) => { b[c.category] = String(c.amount ?? ""); });
-        setCats(b);
-      })
-      .catch(console.error);
-  }, [monthBudgetId]);
+    if (!currentCategories?.length) { setCats(empty()); return; }
+    const b = empty();
+    currentCategories.forEach((c) => { b[c.category] = String(c.amount ?? ""); });
+    setCats(b);
+  }, [currentCategories]);
 
   const allocated  = Object.values(cats).reduce((s, v) => s + (Number(v) || 0), 0);
   const totalNum   = Number(totalBudget) || 0;
@@ -121,20 +117,31 @@ export default function BudgetManager({ onBudgetSaved }) {
       return;
     }
     setError("");
+
+    const newCategories = Object.entries(cats)
+      .filter(([, v]) => v)
+      .map(([category, amount]) => ({ category, amount: Number(amount) }));
+
     fetch("/api/saveBudget", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({
-        total_budget: totalNum,
-        categories: Object.entries(cats)
-          .filter(([, v]) => v)
-          .map(([category, amount]) => ({ category, amount: Number(amount) })),
-      }),
+      body: JSON.stringify({ total_budget: totalNum, categories: newCategories }),
     })
       .then((r) => r.json())
-      .then(() => { setSaved(true); if (onBudgetSaved) onBudgetSaved(); setTimeout(() => setSaved(false), 3000); })
+      .then(() => {
+        // Update context so FinanceTracker reflects saved values immediately
+        setAllBudgets((prev) => ({
+          ...prev,
+          [currentBudgetID]: { ...prev[currentBudgetID], budget_amount: totalNum },
+        }));
+        setCurrentCategories(newCategories);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      })
       .catch(() => setError("Failed to save. Try again."));
   }
+
+  if (isLoading) return <LoadingScreen />;
 
   return (
     <div className="min-h-screen" style={{ background: "#0c0c18" }}>
@@ -147,11 +154,11 @@ export default function BudgetManager({ onBudgetSaved }) {
           borderRadius: "0 0 28px 28px",
         }}
       >
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-bold text-white tracking-tight">Budget Manager</h1>
           <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
+            value={currentMonth}
+            onChange={(e) => setCurrentMonth(e.target.value)}
             className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
             style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
           >
@@ -160,6 +167,23 @@ export default function BudgetManager({ onBudgetSaved }) {
             ))}
           </select>
         </div>
+
+        {Object.keys(allBudgets).length > 0 && (
+          <div className="flex justify-end mb-5">
+            <select
+              value={currentBudgetID ?? ""}
+              onChange={(e) => selectBudget(e.target.value)}
+              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
+              style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
+            >
+              {Object.entries(allBudgets).map(([id, b]) => (
+                <option key={id} value={id} style={{ background: "#0c1a2e" }}>
+                  {b.description || `Budget ${id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex items-center gap-6">
           <AllocationRing allocated={allocated} total={totalNum} />

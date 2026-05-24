@@ -18,6 +18,7 @@ from db import (
 	db_get_monthly_budget,
 	db_get_budget_categories,
 	db_get_month_data,
+	db_get_finance_data
 )
 import uvicorn
 from logger import get_logger
@@ -116,7 +117,7 @@ async def add_transaction(request: Request, current_username: str = Depends(get_
 		data.get("description", ""),
 		data.get("budget_id"),
 	)
-	logger.info("POST /addTransaction — user=%s category=%s amount=%s", current_username, data.get("category"), data.get("amount"))
+	logger.info("POST /addTransaction — user=%s category=%s amount=%s budget_id=%s", current_username, data.get("category"), data.get("amount"), data.get("budget_id"))
 	return {"message": "Transaction added successfully"}
 
 @protected_router.delete("/deleteTransaction/{transaction_id}")
@@ -241,6 +242,15 @@ def get_month_data(month: str, budget_id: Optional[int] = Query(default=None), c
 	]
 	return JSONResponse(content={"transactions": formatted})
 
+@protected_router.get("/get_finance_data")
+def get_finance_data(month: str, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	data = db_get_finance_data(user["id"], month)
+
+	logger.info("GET /get_finance_data — sending data back")
+
+	return data
 
 app.include_router(public_router)
 app.include_router(protected_router)
