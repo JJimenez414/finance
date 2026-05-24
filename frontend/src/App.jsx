@@ -2,6 +2,7 @@ import FinanceTracker from "./components/FinanceTracker";
 import BudgetManager from "./components/BudgetManager";
 import Login from "./components/Login";
 import NavButton from "./components/NavButton";
+import LoadingScreen from "./components/LoadingScreen";
 import { BudgetProvider } from "./context/FinanceContext";
 import { useEffect, useState } from "react";
 
@@ -46,7 +47,7 @@ export default function App() {
   }
 
   if (isLoading) {
-    return <div className="loading">Loading...</div>;
+    return <LoadingScreen />;
   }
 
   if (!user) {

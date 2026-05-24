@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, AlertTriangle } from "lucide-react";
+import LoadingScreen from "./LoadingScreen";
 import { useBudgetContext } from "../context/useBudgetContext";
 
 const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
@@ -83,6 +84,7 @@ export default function BudgetManager() {
     setCurrentCategories,
     allBudgets,
     setAllBudgets,
+    isLoading,
   } = useBudgetContext();
 
   const [totalBudget, setTotalBudget] = useState("");
@@ -138,6 +140,8 @@ export default function BudgetManager() {
       })
       .catch(() => setError("Failed to save. Try again."));
   }
+
+  if (isLoading) return <LoadingScreen />;
 
   return (
     <div className="min-h-screen" style={{ background: "#0c0c18" }}>

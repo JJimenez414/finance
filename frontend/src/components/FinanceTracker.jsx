@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Pencil, Trash2, X } from "lucide-react";
 import CategoryGrid from "./CategoryGrid";
 import TransactionList from "./TransactionList";
+import LoadingScreen from "./LoadingScreen";
 import { useBudgetContext } from "../context/useBudgetContext";
 
 const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
@@ -148,6 +149,8 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
     setCurrentTransactions,
     currentCategories,
     allBudgets,
+    isLoading,
+    isRefreshing,
   } = useBudgetContext();
 
   const [activeCategory, setActiveCategory] = useState(null);
@@ -179,7 +182,7 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
   );
 
   function handleAdd(vals) {
-    const newTransaction = { id: crypto.randomUUID(), ...vals };
+    const newTransaction = { id: crypto.randomUUID(), budget_id: currentBudgetID, ...vals };
     setCurrentTransactions((prev) => [newTransaction, ...prev]);
     setIsAddTransactionOpen(false);
     fetch("/api/addTransaction", {
@@ -207,8 +210,15 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
       .catch(console.error);
   }
 
+  if (isLoading) return <LoadingScreen />;
+
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: "#0c0c18" }}>
+      {isRefreshing && (
+        <div className="fixed top-0 left-0 right-0 z-[400] h-0.5" style={{ background: "rgba(255,255,255,0.05)" }}>
+          <div className="h-full animate-pulse" style={{ background: "linear-gradient(90deg, #14b8a6, #67e8f9)", width: "60%" }} />
+        </div>
+      )}
 
       {/* Hero */}
       <div
