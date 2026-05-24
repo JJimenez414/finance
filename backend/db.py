@@ -126,12 +126,14 @@ def db_add_transaction(user_id, date, category, amount, description, budget_id):
 	conn = get_db_connection()
 	cur = conn.cursor()
 	cur.execute(
-		"INSERT INTO transactions (user_id, transaction_date, category, amount, description, budget_id) VALUES (%s, %s, %s, %s, %s, %s);",
+		"INSERT INTO transactions (user_id, transaction_date, category, amount, description, budget_id) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;",
 		(user_id, date, category, amount, description, budget_id)
 	)
+	new_id = cur.fetchone()[0]
 	conn.commit()
 	cur.close()
 	conn.close()
+	return new_id
 
 def db_delete_transaction(transaction_id, user_id):
 	conn = get_db_connection()
