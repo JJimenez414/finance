@@ -143,6 +143,7 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
     currentMonth,
     setCurrentMonth,
     currentBudgetID,
+    selectBudget,
     currentTransactions,
     setCurrentTransactions,
     currentCategories,
@@ -217,7 +218,7 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
           borderRadius: "0 0 28px 28px",
         }}
       >
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-bold text-white tracking-tight">Finance Tracker</h1>
           <select
             value={currentMonth}
@@ -230,6 +231,23 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
             ))}
           </select>
         </div>
+
+        {Object.keys(allBudgets).length > 1 && (
+          <div className="flex justify-end mb-5">
+            <select
+              value={currentBudgetID ?? ""}
+              onChange={(e) => selectBudget(e.target.value)}
+              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
+              style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
+            >
+              {Object.entries(allBudgets).map(([id, b]) => (
+                <option key={id} value={id} style={{ background: "#0c1a2e" }}>
+                  {b.description || `Budget ${id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex justify-center">
           <RingProgress spent={totalSpent} total={totalBudget} />

@@ -13,13 +13,16 @@ function authHeaders() {
 }
 
 export function BudgetProvider({ children }) {
-  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth);
-  const [currentBudgetID, setCurrentBudgetID] = useState(null);
+  const [currentMonth, setCurrentMonth]           = useState(getCurrentMonth);
+  const [currentBudgetID, setCurrentBudgetID]     = useState(null);
   const [currentTransactions, setCurrentTransactions] = useState([]);
   const [currentCategories, setCurrentCategories] = useState([]);
-  const [allBudgets, setAllBudgets] = useState({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [allBudgets, setAllBudgets]               = useState({});
+  const [allCategories, setAllCategories]         = useState({});
+  const [allTransactions, setAllTransactions]     = useState({});
+  const [isLoading, setIsLoading]                 = useState(true);
 
+  // Fetch all data for the selected month
   useEffect(() => {
     setIsLoading(true);
     fetch(`/api/get_finance_data?month=${currentMonth}`, { headers: authHeaders() })
@@ -27,33 +30,40 @@ export function BudgetProvider({ children }) {
       .then((data) => {
         if (!data) return;
 
-        const budgets = data.all_budgets ?? {};
-        const categories = data.all_categories ?? {};
+        const budgets      = data.all_budgets ?? {};
+        const categories   = data.all_categories ?? {};
         const transactions = data.all_transaction ?? {};
 
-        // most recent budget is the first key (backend orders by created_at DESC)
         const firstBudgetID = Number(next_key(budgets));
 
         setAllBudgets(budgets);
+        setAllCategories(categories);
+        setAllTransactions(transactions);
         setCurrentBudgetID(firstBudgetID);
         setCurrentCategories(categories[firstBudgetID] ?? []);
         setCurrentTransactions(transactions[firstBudgetID] ?? []);
-        console.log(budgets)
-        console.log(firstBudgetID)
-        console.log(categories)
-        console.log(transactions)
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, [currentMonth]);
 
+  // When budget ID changes, slice the correct data from the full dicts
+  function selectBudget(budgetID) {
+    const id = Number(budgetID);
+    setCurrentBudgetID(id);
+    setCurrentCategories(allCategories[id] ?? []);
+    setCurrentTransactions(allTransactions[id] ?? []);
+  }
+
   return (
     <budgetContext.Provider value={{
       currentMonth, setCurrentMonth,
-      currentBudgetID, setCurrentBudgetID,
+      currentBudgetID, selectBudget,
       currentTransactions, setCurrentTransactions,
       currentCategories, setCurrentCategories,
       allBudgets, setAllBudgets,
+      allCategories, setAllCategories,
+      allTransactions, setAllTransactions,
       isLoading,
     }}>
       {children}
