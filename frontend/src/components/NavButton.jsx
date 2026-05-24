@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-export default function NavButton({onNavigate, setIsAddTransactionOpen}) {
+export default function NavButton({onNavigate, setIsAddTransactionOpen, onLogout}) {
     const [isFabOpen, setIsFabOpen] = useState(false);
 
     return (
@@ -33,6 +33,14 @@ export default function NavButton({onNavigate, setIsAddTransactionOpen}) {
             >
               <span className="fab-item-label">Finance Tracker</span>
               <span className="fab-item-icon">≡</span>
+            </button>
+            <button
+              type="button"
+              className="fab-item"
+              onClick={() => { onLogout(); setIsFabOpen(false); }}
+            >
+              <span className="fab-item-label">Log Out</span>
+              <span className="fab-item-icon">→</span>
             </button>
           </div>
         )}

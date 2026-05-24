@@ -1,259 +1,302 @@
 import { useEffect, useState } from "react";
+import { Check, AlertTriangle } from "lucide-react";
+import LoadingScreen from "./LoadingScreen";
+import { useBudgetContext } from "../context/useBudgetContext";
 
-const CATEGORIES = [
-  "Living",
-  "Food",
-  "Transportation",
-  "Finance",
-  "Miscellaneous",
-  "Give",
-];
+const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
 
 const CATEGORY_COLORS = {
-  Living: "#14b8a6",
-  Food: "#f59e0b",
-  Transportation: "#3b82f6",
-  Finance: "#a78bfa",
-  Miscellaneous: "#ec4899",
-  Give: "#84cc16",
+  Living:         "#14b8a6",
+  Food:           "#f59e0b",
+  Transportation: "#60a5fa",
+  Finance:        "#a78bfa",
+  Miscellaneous:  "#f472b6",
+  Give:           "#a3e635",
 };
 
 const MONTH_OPTIONS = (() => {
-  const options = [];
+  const opts = [];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    options.push({
+    opts.push({
       value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
       label: d.toLocaleString("default", { month: "long", year: "numeric" }),
     });
   }
-  return options;
+  return opts;
 })();
 
-export default function BudgetManager({ budgetData, onBudgetSaved }) {
-  const emptyCategoryBudgets = CATEGORIES.reduce(
-    (acc, cat) => ({ ...acc, [cat]: "" }),
-    {}
+function AllocationRing({ allocated, total }) {
+  const pct = total > 0 ? Math.min(allocated / total, 1) : 0;
+  const r = 72; const cx = 90; const cy = 90;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference * (1 - pct);
+  const isOver = allocated > total && total > 0;
+  const isDone = total > 0 && Math.round(allocated * 100) === Math.round(total * 100);
+
+  return (
+    <svg viewBox="0 0 180 180" className="w-44 h-44">
+      <defs>
+        <linearGradient id="alloc-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#14b8a6" />
+          <stop offset="100%" stopColor="#67e8f9" />
+        </linearGradient>
+      </defs>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="12" />
+      {pct > 0 && (
+        <circle
+          cx={cx} cy={cy} r={r}
+          fill="none"
+          stroke={isOver ? "#f87171" : isDone ? "#34d399" : "url(#alloc-grad)"}
+          strokeWidth="12"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${cx} ${cy})`}
+          style={{ transition: "stroke-dashoffset 0.5s ease" }}
+        />
+      )}
+      <text x={cx} y={cy - 4} textAnchor="middle" fill="white" fontSize="22" fontWeight="700" fontFamily="system-ui">
+        {(pct * 100).toFixed(0)}%
+      </text>
+      <text x={cx} y={cy + 16} textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="11" fontFamily="system-ui">
+        allocated
+      </text>
+    </svg>
   );
+}
+
+const empty = () => CATEGORIES.reduce((a, c) => ({ ...a, [c]: "" }), {});
+
+function authHeaders() {
+  const t = localStorage.getItem("jmz_finance_access_token");
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+export default function BudgetManager() {
+  const {
+    currentMonth,
+    setCurrentMonth,
+    currentBudgetID,
+    selectBudget,
+    currentCategories,
+    setCurrentCategories,
+    allBudgets,
+    setAllBudgets,
+    isLoading,
+  } = useBudgetContext();
 
   const [totalBudget, setTotalBudget] = useState("");
-  const [categoryBudgets, setCategoryBudgets] = useState(emptyCategoryBudgets);
-  const [saved, setSaved] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0].value);
+  const [cats, setCats]               = useState(empty());
+  const [saved, setSaved]             = useState(false);
+  const [error, setError]             = useState("");
 
-  function getAuthHeaders() {
-    const token = localStorage.getItem("jmz_finance_access_token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
+  // Sync local edit state when context data changes (e.g. month switch)
+  useEffect(() => {
+    const budget = allBudgets[currentBudgetID];
+    setTotalBudget(budget ? String(budget.budget_amount) : "");
+  }, [currentBudgetID, allBudgets]);
 
   useEffect(() => {
-    if (!budgetData) {
-      setTotalBudget("");
-      setCategoryBudgets(emptyCategoryBudgets);
-      return;
-    }
+    if (!currentCategories?.length) { setCats(empty()); return; }
+    const b = empty();
+    currentCategories.forEach((c) => { b[c.category] = String(c.amount ?? ""); });
+    setCats(b);
+  }, [currentCategories]);
 
-    setTotalBudget(String(budgetData.total_budget ?? ""));
-    const budgets = { ...emptyCategoryBudgets };
-    if (budgetData.categories) {
-      budgetData.categories.forEach((cat) => {
-        budgets[cat.category] = String(cat.amount ?? "");
-      });
-    }
-    setCategoryBudgets(budgets);
-  }, [budgetData]);
-
-  function handleTotalBudgetChange(value) {
-    setTotalBudget(value);
-    setSaved(false);
-    setErrorMessage("");
-  }
-
-  function handleCategoryChange(category, value) {
-    setCategoryBudgets((prev) => ({ ...prev, [category]: value }));
-    setSaved(false);
-    setErrorMessage("");
-  }
-
-  function validateAndGetTotal() {
-    const total = Object.values(categoryBudgets).reduce((sum, val) => {
-      const num = Number(val) || 0;
-      return sum + num;
-    }, 0);
-
-    const totalCents = Math.round(total * 100);
-    const budgetCents = Math.round((Number(totalBudget) || 0) * 100);
-
-    if (totalCents !== budgetCents) {
-      setErrorMessage(
-        `Amounts must add up to total budget ($${Number(totalBudget || 0).toFixed(2)}). Current total: $${total.toFixed(2)}`
-      );
-      return null;
-    }
-    return true;
-  }
-
-  function fetchMonthBudget(month) {
-    fetch(`/api/getMonthlyBudget?month=${month}`, {
-      headers: getAuthHeaders(),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log(data)
-        if(!data.budget) return;
-        setTotalBudget(String(data.budget.total_budget ?? ""))
-        const budgets = { ...emptyCategoryBudgets };
-        if (data.budget.categories) {
-            data.budget.categories.forEach((cat) => {
-            budgets[cat.category] = String(cat.amount ?? "");
-          });
-        }
-        setCategoryBudgets(budgets);
-
-      })
-      .catch((error) => console.error("Error:", error))
-      .finally()
-  }
-
-  useEffect(() => {
-    fetchMonthBudget(selectedMonth);
-  }, [selectedMonth]);
+  const allocated  = Object.values(cats).reduce((s, v) => s + (Number(v) || 0), 0);
+  const totalNum   = Number(totalBudget) || 0;
+  const remaining  = totalNum - allocated;
+  const isBalanced = totalNum > 0 && Math.round(allocated * 100) === Math.round(totalNum * 100);
 
   function handleSave() {
-    if (!totalBudget || Number(totalBudget) <= 0) {
-      setErrorMessage("Please enter a valid total budget");
+    if (!totalNum || totalNum <= 0) { setError("Enter a valid total budget."); return; }
+    if (!isBalanced) {
+      setError(`Allocations must equal $${totalNum.toFixed(2)}. Currently $${allocated.toFixed(2)}.`);
       return;
     }
+    setError("");
 
-    setErrorMessage("");
-
-    if (!validateAndGetTotal()) {
-      return;
-    }
-
-    const categoryData = Object.entries(categoryBudgets)
-      .filter(([_, amount]) => amount)
-      .map(([category, amount]) => ({
-        category,
-        amount: Number(amount),
-      }));
+    const newCategories = Object.entries(cats)
+      .filter(([, v]) => v)
+      .map(([category, amount]) => ({ category, amount: Number(amount) }));
 
     fetch("/api/saveBudget", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({
-        total_budget: Number(totalBudget),
-        categories: categoryData,
-      }),
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ total_budget: totalNum, categories: newCategories }),
     })
-      .then((response) => response.json())
+      .then((r) => r.json())
       .then(() => {
-        setErrorMessage("");
+        // Update context so FinanceTracker reflects saved values immediately
+        setAllBudgets((prev) => ({
+          ...prev,
+          [currentBudgetID]: { ...prev[currentBudgetID], budget_amount: totalNum },
+        }));
+        setCurrentCategories(newCategories);
         setSaved(true);
-        if (onBudgetSaved) {
-          onBudgetSaved();
-        }
         setTimeout(() => setSaved(false), 3000);
       })
-      .catch((error) => {
-        setErrorMessage("Failed to save budget. Please try again.");
-        console.error("Error saving budget:", error);
-      });
+      .catch(() => setError("Failed to save. Try again."));
   }
 
-  const allocated = Object.values(categoryBudgets).reduce((sum, val) => sum + (Number(val) || 0), 0);
-  const unallocated = (Number(totalBudget) || 0) - allocated;
-  const totalNum = Number(totalBudget) || 0;
+  if (isLoading) return <LoadingScreen />;
 
   return (
-    <main className="dashboard">
-      <section className="budget-hero">
-        <select
-          className="budget-hero-month"
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-        >
-          {MONTH_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        <p className="budget-hero-label">Total Budget</p>
-        <div className="budget-hero-input">
-          <span className="budget-hero-symbol">$</span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={totalBudget}
-            onChange={(event) => handleTotalBudgetChange(event.target.value)}
-            placeholder="0.00"
-          />
-        </div>
-        <p className="budget-hero-sub">Monthly paycheck</p>
-      </section>
+    <div className="min-h-screen" style={{ background: "#0c0c18" }}>
 
-      <section className="category-allocations">
-        <h2>Allocations</h2>
-        <ul className="allocation-list">
-          {CATEGORIES.map((category) => {
-            const pct = totalNum > 0 && categoryBudgets[category]
-              ? ((Number(categoryBudgets[category]) / totalNum) * 100).toFixed(0)
-              : null;
+      {/* Hero */}
+      <div
+        className="px-5 pt-6 pb-10"
+        style={{
+          background: "linear-gradient(160deg, #0a1628 0%, #0c3a54 55%, #0a2a3a 100%)",
+          borderRadius: "0 0 28px 28px",
+        }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-lg font-bold text-white tracking-tight">Budget Manager</h1>
+          <select
+            value={currentMonth}
+            onChange={(e) => setCurrentMonth(e.target.value)}
+            className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
+            style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
+          >
+            {MONTH_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value} style={{ background: "#0c1a2e" }}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {Object.keys(allBudgets).length > 0 && (
+          <div className="flex justify-end mb-5">
+            <select
+              value={currentBudgetID ?? ""}
+              onChange={(e) => selectBudget(e.target.value)}
+              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
+              style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
+            >
+              {Object.entries(allBudgets).map(([id, b]) => (
+                <option key={id} value={id} style={{ background: "#0c1a2e" }}>
+                  {b.description || `Budget ${id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="flex items-center gap-6">
+          <AllocationRing allocated={allocated} total={totalNum} />
+
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-white/35 uppercase tracking-widest mb-2">Monthly budget</p>
+            <div className="flex items-baseline gap-1 mb-5">
+              <span className="text-xl font-semibold text-white/30">$</span>
+              <input
+                type="number" step="0.01" min="0"
+                value={totalBudget}
+                onChange={(e) => { setTotalBudget(e.target.value); setSaved(false); setError(""); }}
+                placeholder="0"
+                className="bg-transparent text-3xl font-bold text-white focus:outline-none placeholder:text-white/15 w-full"
+                style={{ border: "none", padding: 0, height: "auto", borderRadius: 0, WebkitAppearance: "none" }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              {[
+                { label: "Allocated", val: allocated, color: "#5eead4" },
+                { label: "Remaining", val: remaining, color: remaining < 0 ? "#f87171" : remaining === 0 ? "#34d399" : "#fbbf24" },
+              ].map((s) => (
+                <div key={s.label} className="flex justify-between">
+                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>{s.label}</span>
+                  <span className="text-xs font-semibold" style={{ color: s.color }}>${s.val.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Allocations */}
+      <div className="px-4 pt-6 pb-28">
+        <p className="text-xs font-medium text-white/30 uppercase tracking-widest mb-3 px-1">Allocations</p>
+        <div className="grid grid-cols-2 gap-2.5">
+          {CATEGORIES.map((cat) => {
+            const val   = cats[cat];
+            const num   = Number(val) || 0;
+            const color = CATEGORY_COLORS[cat];
+            const pct   = totalNum > 0 && num > 0 ? ((num / totalNum) * 100).toFixed(0) : null;
+
             return (
-              <li key={category} className="allocation-row">
-                <div className="allocation-row-left">
-                  <span className="allocation-dot" style={{ backgroundColor: CATEGORY_COLORS[category] }} />
-                  <span className="allocation-name">{category}</span>
-                  {pct && <span className="allocation-pct">{pct}%</span>}
+              <div
+                key={cat}
+                style={{
+                  background: "#13131e",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderLeft: `3px solid ${color}`,
+                  borderRadius: "12px",
+                }}
+              >
+                <div className="p-3.5">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <p className="text-sm font-semibold text-white">{cat}</p>
+                    {pct && <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>{pct}%</span>}
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style={{ color: "rgba(255,255,255,0.3)" }}>$</span>
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={val}
+                      onChange={(e) => { setCats((p) => ({ ...p, [cat]: e.target.value })); setSaved(false); setError(""); }}
+                      placeholder="0.00"
+                      className="w-full h-9 text-sm text-white placeholder:text-white/20 focus:outline-none transition-colors"
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.09)",
+                        borderRadius: "8px",
+                        paddingLeft: "22px",
+                        paddingRight: "10px",
+                        WebkitAppearance: "none",
+                        appearance: "none",
+                      }}
+                      onFocus={(e) => { e.target.style.borderColor = color + "66"; }}
+                      onBlur={(e)  => { e.target.style.borderColor = "rgba(255,255,255,0.09)"; }}
+                    />
+                  </div>
                 </div>
-                <div className="allocation-input-wrap">
-                  <span className="unit">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={categoryBudgets[category] ?? ""}
-                    onChange={(event) => handleCategoryChange(category, event.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-              </li>
+              </div>
             );
           })}
-        </ul>
-      </section>
-
-      <section className="budget-summary">
-        <div className="budget-stat-row">
-          <div className="budget-stat">
-            <p className="budget-stat-label">Total</p>
-            <p className="budget-stat-value">${totalNum.toFixed(2)}</p>
-          </div>
-          <div className="budget-stat">
-            <p className="budget-stat-label">Allocated</p>
-            <p className="budget-stat-value">${allocated.toFixed(2)}</p>
-          </div>
-          <div className="budget-stat">
-            <p className="budget-stat-label">Unallocated</p>
-            <p className={`budget-stat-value ${unallocated < 0 ? "negative" : ""}`}>
-              ${unallocated.toFixed(2)}
-            </p>
-          </div>
         </div>
-      </section>
 
-      <div className="budget-actions">
-        <button onClick={handleSave} className="save-button">
-          Save Budget
+        {error && (
+          <div className="mt-4 flex gap-2.5 items-start px-4 py-3" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "10px" }}>
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#f87171" }} />
+            <p className="text-sm" style={{ color: "#fca5a5" }}>{error}</p>
+          </div>
+        )}
+        {saved && (
+          <div className="mt-4 flex gap-2.5 items-center px-4 py-3" style={{ background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: "10px" }}>
+            <Check className="w-4 h-4 flex-shrink-0" style={{ color: "#34d399" }} />
+            <p className="text-sm" style={{ color: "#6ee7b7" }}>Budget saved</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleSave}
+          className="mt-4 w-full text-white text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-75"
+          style={{
+            height: "48px",
+            background: "linear-gradient(135deg, #14b8a6, #0ea5e9)",
+            border: "none",
+            borderRadius: "12px",
+            cursor: "pointer",
+            boxShadow: "0 4px 20px rgba(20,184,166,0.25)",
+          }}
+        >
+          Save budget
         </button>
-        {errorMessage && <p className="error-message">{errorMessage}</p>}
-        {saved && <p className="success-message">Budget saved successfully!</p>}
       </div>
-    </main>
+    </div>
   );
 }

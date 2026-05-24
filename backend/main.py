@@ -10,7 +10,6 @@ from db import (
 	db_check_existing_user,
 	db_create_user,
 	db_add_transaction,
-	db_get_transactions,
 	db_delete_transaction,
 	db_update_transaction,
 	db_create_budget,
@@ -19,11 +18,12 @@ from db import (
 	db_get_monthly_budget,
 	db_get_budget_categories,
 	db_get_month_data,
+	db_get_finance_data
 )
 import uvicorn
 from logger import get_logger
 
-logger = get_logger("main")
+logger = get_logger("MAIN")
 
 app = FastAPI(title="Basic FastAPI App")
 security = HTTPBearer()
@@ -117,24 +117,8 @@ async def add_transaction(request: Request, current_username: str = Depends(get_
 		data.get("description", ""),
 		data.get("budget_id"),
 	)
-	logger.info("POST /addTransaction — user=%s category=%s amount=%s", current_username, data.get("category"), data.get("amount"))
+	logger.info("POST /addTransaction — user=%s category=%s amount=%s budget_id=%s", current_username, data.get("category"), data.get("amount"), data.get("budget_id"))
 	return {"message": "Transaction added successfully"}
-
-@protected_router.get("/getTransactions")
-def get_transactions(current_username: str = Depends(get_current_user)):
-	logger.info("GET /getTransactions — %s", current_username)
-	user = get_user_by_username(current_username)
-	if user is None:
-		logger.warning("GET /getTransactions — user not found: %s", current_username)
-		raise HTTPException(status_code=404, detail="User not found")
-
-	rows = db_get_transactions(user["id"])
-	logger.info("GET /getTransactions — returned %d rows for %s", len(rows), current_username)
-	formatted = [
-		{"id": int(r[0]), "description": r[1], "date": str(r[2]), "category": r[3], "amount": float(r[4])}
-		for r in rows
-	]
-	return JSONResponse(content={"transactions": formatted})
 
 @protected_router.delete("/deleteTransaction/{transaction_id}")
 def delete_transaction(transaction_id: str, current_username: str = Depends(get_current_user)):
@@ -242,7 +226,7 @@ def get_budget_categories(budget_id: int, current_username: str = Depends(get_cu
 	logger.info("GET /getBudgetCategories — returned %d categories", len(categories))
 	return JSONResponse(content={"categories": categories})
 
-@protected_router.get("/month")
+@protected_router.get("/month_data")
 def get_month_data(month: str, budget_id: Optional[int] = Query(default=None), current_username: str = Depends(get_current_user)):
 	logger.info("GET /month — user=%s month=%s budget_id=%s", current_username, month, budget_id)
 	user = get_user_by_username(current_username)
@@ -258,6 +242,15 @@ def get_month_data(month: str, budget_id: Optional[int] = Query(default=None), c
 	]
 	return JSONResponse(content={"transactions": formatted})
 
+@protected_router.get("/get_finance_data")
+def get_finance_data(month: str, current_username: str = Depends(get_current_user)):
+	user = get_user_by_username(current_username)
+
+	data = db_get_finance_data(user["id"], month)
+
+	logger.info("GET /get_finance_data — sending data back")
+
+	return data
 
 app.include_router(public_router)
 app.include_router(protected_router)
