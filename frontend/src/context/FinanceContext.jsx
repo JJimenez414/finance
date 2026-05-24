@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useState, useEffect } from "react";
 
-const budgetContext = createContext(null);
+export const budgetContext = createContext(null);
 
 function getCurrentMonth() {
   const now = new Date();
@@ -38,6 +38,10 @@ export function BudgetProvider({ children }) {
         setCurrentBudgetID(firstBudgetID);
         setCurrentCategories(categories[firstBudgetID] ?? []);
         setCurrentTransactions(transactions[firstBudgetID] ?? []);
+        console.log(budgets)
+        console.log(firstBudgetID)
+        console.log(categories)
+        console.log(transactions)
       })
       .catch(console.error)
       .finally(() => setIsLoading(false));
@@ -55,10 +59,6 @@ export function BudgetProvider({ children }) {
       {children}
     </budgetContext.Provider>
   );
-}
-
-export function useBudgetContext() {
-  return useContext(budgetContext);
 }
 
 function next_key(obj) {

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pencil, Trash2, X } from "lucide-react";
 import CategoryGrid from "./CategoryGrid";
 import TransactionList from "./TransactionList";
+import { useBudgetContext } from "../context/useBudgetContext";
 
 const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
 
@@ -32,19 +33,10 @@ function getTodayDate() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split("T")[0];
 }
 
-function statusFor(spent, budget) {
-  if (budget <= 0) return spent > 0 ? "over" : "ok";
-  const r = spent / budget;
-  if (r > 1) return "over";
-  if (r >= 0.85) return "close";
-  return "ok";
+function authHeaders() {
+  const t = localStorage.getItem("jmz_finance_access_token");
+  return t ? { Authorization: `Bearer ${t}` } : {};
 }
-
-const STATUS = {
-  ok:    { label: "On track",   color: "#34d399" },
-  close: { label: "Close",      color: "#fbbf24" },
-  over:  { label: "Over budget", color: "#f87171" },
-};
 
 function RingProgress({ spent, total }) {
   const pct = total > 0 ? Math.min(spent / total, 1) : 0;
@@ -147,84 +139,71 @@ function TransactionForm({ defaultValues = {}, onSubmit, submitLabel }) {
 }
 
 export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransactionOpen }) {
-  const [filteredPurchases, setFilteredPurchases] = useState([]);
-  const [monthBudget, setMonthBudget] = useState(null);
-  const [categoryBudgets, setCategoryBudgets] = useState([]);
+  const {
+    currentMonth,
+    setCurrentMonth,
+    currentBudgetID,
+    currentTransactions,
+    setCurrentTransactions,
+    currentCategories,
+    allBudgets,
+  } = useBudgetContext();
+
   const [activeCategory, setActiveCategory] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState(MONTH_OPTIONS[0].value);
   const [activeTab, setActiveTab] = useState("categories");
-  const [isLoading, setIsLoading] = useState(true);
 
-  function authHeaders() {
-    const t = localStorage.getItem("jmz_finance_access_token");
-    return t ? { Authorization: `Bearer ${t}` } : {};
-  }
+  const totalBudget = Number(allBudgets[currentBudgetID]?.budget_amount) || 0;
 
-  function fetchMonth(month) {
-    setIsLoading(true);
-    Promise.all([
-      fetch(`/api/month_data?month=${month}`, { headers: authHeaders() }).then((r) => r.json()),
-      fetch(`/api/getMonthlyBudget?month=${month}`, { headers: authHeaders() }).then((r) => r.json()),
-    ])
-      .then(([txData, budgetData]) => {
-        setFilteredPurchases(txData.transactions ?? []);
-        setMonthBudget(budgetData.budgets?.[0] ?? null);
-      })
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
-  }
-
-  useEffect(() => { fetchMonth(selectedMonth); }, [selectedMonth]);
-
-  useEffect(() => {
-    if (!monthBudget?.id) return;
-    fetch(`/api/getBudgetCategories?budget_id=${monthBudget.id}`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then((data) => setCategoryBudgets(data.categories ?? []))
-      .catch(console.error);
-  }, [monthBudget]);
-
-  const totalSpent = useMemo(() => filteredPurchases.reduce((s, p) => s + p.amount, 0), [filteredPurchases]);
   const budgetByCategory = useMemo(() =>
-    Object.fromEntries(categoryBudgets.map((x) => [x.category, Number(x.amount) || 0])),
-    [categoryBudgets]
+    Object.fromEntries((currentCategories ?? []).map((x) => [x.category, Number(x.amount) || 0])),
+    [currentCategories]
   );
-  const totalBudget = Number(monthBudget?.total_budget) || 0;
+
+  const totalSpent = useMemo(() =>
+    (currentTransactions ?? []).reduce((s, p) => s + p.amount, 0),
+    [currentTransactions]
+  );
 
   const byCategory = useMemo(() => CATEGORIES.map((name) => ({
     name,
     color: CATEGORY_COLORS[name],
-    spent:  filteredPurchases.filter((p) => p.category === name).reduce((s, p) => s + p.amount, 0),
+    spent: (currentTransactions ?? []).filter((p) => p.category === name).reduce((s, p) => s + p.amount, 0),
     budget: budgetByCategory[name] || 0,
-  })), [filteredPurchases, budgetByCategory]);
+  })), [currentTransactions, budgetByCategory]);
 
   const activeTxns = useMemo(
-    () => filteredPurchases.filter((p) => p.category === activeCategory),
-    [filteredPurchases, activeCategory]
+    () => (currentTransactions ?? []).filter((p) => p.category === activeCategory),
+    [currentTransactions, activeCategory]
   );
 
   function handleAdd(vals) {
+    const newTransaction = { id: crypto.randomUUID(), ...vals };
+    setCurrentTransactions((prev) => [newTransaction, ...prev]);
+    setIsAddTransactionOpen(false);
     fetch("/api/addTransaction", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ id: crypto.randomUUID(), ...vals }),
-    }).then(() => fetchMonth(selectedMonth)).catch(console.error);
-    setIsAddTransactionOpen(false);
+      body: JSON.stringify(newTransaction),
+    }).catch(() => setCurrentTransactions((prev) => prev.filter((t) => t.id !== newTransaction.id)));
   }
 
   function handleUpdate(vals) {
+    setCurrentTransactions((prev) =>
+      prev.map((t) => t.id === editingTransaction.id ? { ...t, ...vals } : t)
+    );
+    setEditingTransaction(null);
     fetch("/api/updateTransaction", {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ id: editingTransaction.id, ...vals }),
-    }).then(() => { fetchMonth(selectedMonth); setEditingTransaction(null); }).catch(console.error);
+    }).catch(console.error);
   }
 
   function handleDelete(id) {
-    setFilteredPurchases((prev) => prev.filter((t) => t.id !== id));
+    setCurrentTransactions((prev) => prev.filter((t) => t.id !== id));
     fetch(`/api/deleteTransaction/${id}`, { method: "DELETE", headers: authHeaders() })
-      .catch(() => fetchMonth(selectedMonth));
+      .catch(console.error);
   }
 
   return (
@@ -241,8 +220,8 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-lg font-bold text-white tracking-tight">Finance Tracker</h1>
           <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
+            value={currentMonth}
+            onChange={(e) => setCurrentMonth(e.target.value)}
             className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
             style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
           >
@@ -285,13 +264,13 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
 
       {activeTab === "transactions" && (
         <TransactionList
-          transactions={filteredPurchases}
+          transactions={currentTransactions}
           onEdit={setEditingTransaction}
           onDelete={handleDelete}
         />
       )}
 
-      {/* Transactions sheet */}
+      {/* Category transactions sheet */}
       <Modal
         open={!!activeCategory}
         onClose={() => setActiveCategory(null)}

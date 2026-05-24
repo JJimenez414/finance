@@ -2,6 +2,7 @@ import FinanceTracker from "./components/FinanceTracker";
 import BudgetManager from "./components/BudgetManager";
 import Login from "./components/Login";
 import NavButton from "./components/NavButton";
+import { BudgetProvider } from "./context/FinanceContext";
 import { useEffect, useState } from "react";
 
 export default function App() {
@@ -53,13 +54,13 @@ export default function App() {
   }
 
   return (
-    <>
+    <BudgetProvider>
       <NavButton onNavigate={setCurrentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} />
       {currentPage === "tracker" ? (
         <FinanceTracker isAddTransactionOpen={isAddTransactionOpen} setIsAddTransactionOpen={setIsAddTransactionOpen} />
       ) : (
         <BudgetManager />
       )}
-    </>
+    </BudgetProvider>
   );
 }
