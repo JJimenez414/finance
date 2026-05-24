@@ -43,6 +43,9 @@ export default function App() {
   function handleLogout() {
     localStorage.removeItem("jmz_finance_access_token");
     localStorage.removeItem("jmz_finance_user");
+    localStorage.removeItem("finance_month");
+    localStorage.removeItem("finance_budget_id");
+    localStorage.removeItem("finance_cache");
     setUser(null);
   }
 
@@ -56,7 +59,7 @@ export default function App() {
 
   return (
     <BudgetProvider>
-      <NavButton onNavigate={setCurrentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} />
+      <NavButton onNavigate={setCurrentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} onLogout={handleLogout} />
       {currentPage === "tracker" ? (
         <FinanceTracker isAddTransactionOpen={isAddTransactionOpen} setIsAddTransactionOpen={setIsAddTransactionOpen} />
       ) : (
