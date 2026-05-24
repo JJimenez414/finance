@@ -79,9 +79,9 @@ export default function App() {
     <>
       <NavButton onNavigate={setCurrentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} />    
       {currentPage === "tracker" ? (
-        <FinanceTracker budgetData={budgetData} onNavigate={setCurrentPage} isAddTransactionOpen={isAddTransactionOpen} setIsAddTransactionOpen={setIsAddTransactionOpen}/>
+        <FinanceTracker isAddTransactionOpen={isAddTransactionOpen} setIsAddTransactionOpen={setIsAddTransactionOpen}/>
       ) : (
-        <BudgetManager budgetData={budgetData} onBudgetSaved={fetchBudget} />
+        <BudgetManager onBudgetSaved={fetchBudget} />
       )}
     </>
   );
