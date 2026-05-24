@@ -168,7 +168,7 @@ export default function BudgetManager() {
           </select>
         </div>
 
-        {Object.keys(allBudgets).length > 1 && (
+        {Object.keys(allBudgets).length > 0 && (
           <div className="flex justify-end mb-5">
             <select
               value={currentBudgetID ?? ""}

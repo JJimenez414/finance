@@ -248,7 +248,7 @@ def get_finance_data(month: str, current_username: str = Depends(get_current_use
 
 	data = db_get_finance_data(user["id"], month)
 
-	logger.info("GET /get_finance_data — returned %d len dictionary", len(data))
+	logger.info("GET /get_finance_data — sending data back")
 
 	return data
 
