@@ -122,10 +122,10 @@ export default function BudgetManager() {
       .filter(([, v]) => v)
       .map(([category, amount]) => ({ category, amount: Number(amount) }));
 
-    fetch("/api/saveBudget", {
+    fetch("/api/updateBudget", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ total_budget: totalNum, categories: newCategories }),
+      body: JSON.stringify({ budget_id: currentBudgetID, total_budget: totalNum, categories: newCategories }),
     })
       .then((r) => r.json())
       .then(() => {

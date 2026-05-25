@@ -179,10 +179,12 @@ def db_create_budget(user_id, total_budget, month_date, full_month, description,
 	conn.close()
 	return new_budget_id
 
-def db_save_budget(budget_id, user_id, month_str, categories):
+def db_update_budget(budget_id, user_id, month_str, categories, new_budget):
 	full_month = f"{month_str}-01 00:00:00" if month_str else None
 	conn = get_db_connection()
 	cur = conn.cursor()
+
+	# Checks if budget exists: if not return None, else conitnue
 	cur.execute(
 		"SELECT id FROM user_budget WHERE id = %s AND user_id = %s;",
 		(budget_id, user_id)
@@ -191,6 +193,9 @@ def db_save_budget(budget_id, user_id, month_str, categories):
 		cur.close()
 		conn.close()
 		return False
+	
+	cur.execute("UPDATE user_budget SET total_budget=%s WHERE id = %s AND user_id = %s;", (new_budget, budget_id, user_id))
+
 	cur.execute(
 		"DELETE FROM budgets WHERE budget_id = %s AND user_id = %s;",
 		(budget_id, user_id)
@@ -204,6 +209,7 @@ def db_save_budget(budget_id, user_id, month_str, categories):
 			"INSERT INTO budgets (user_id, category, budget_amount, month, budget_id) VALUES (%s, %s, %s, %s, %s);",
 			(user_id, name, amount, full_month, budget_id)
 		)
+
 	conn.commit()
 	cur.close()
 	conn.close()
