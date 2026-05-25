@@ -146,12 +146,12 @@ def db_delete_transaction(transaction_id, user_id):
 	cur.close()
 	conn.close()
 
-def db_update_transaction(tran_id, amount, category, description, date, user_id):
+def db_update_transaction(tran_id, amount, category, description, date, user_id, budget_id):
 	conn = get_db_connection()
 	cur = conn.cursor()
 	cur.execute(
-		"UPDATE transactions SET amount = %s, category = %s, description = %s, transaction_date = %s WHERE id = %s AND user_id = %s;",
-		(amount, category, description, date, tran_id, user_id)
+		"UPDATE transactions SET amount = %s, category = %s, description = %s, transaction_date = %s WHERE id = %s AND budget_id = %s AND user_id = %s;",
+		(amount, category, description, date, tran_id, budget_id ,user_id)
 	)
 	conn.commit()
 	cur.close()

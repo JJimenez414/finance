@@ -146,8 +146,9 @@ async def update_transaction(request: Request, current_username: str = Depends(g
 		data.get("description"),
 		data.get("date"),
 		user["id"],
+		data.get("budget_id")
 	)
-	logger.info("PUT /updateTransaction — id=%s user=%s", data.get("id"), current_username)
+	logger.info("PUT /updateTransaction — id=%s user=%s budget_id=%s", data.get("id"), current_username, data.get("budget_id"))
 	return {"message": "Transaction updated successfully"}
 
 @protected_router.post("/createBudget")
