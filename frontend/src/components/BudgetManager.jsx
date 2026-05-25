@@ -19,7 +19,8 @@ export default function BudgetManager() {
     currentMonth, setCurrentMonth,
     currentBudgetID, selectBudget,
     currentCategories, setCurrentCategories,
-    allBudgets, setAllBudgets,
+    allBudgets,
+    updateBudgetCache,
     isLoading,
   } = useBudgetContext();
 
@@ -82,14 +83,11 @@ export default function BudgetManager() {
     fetch("/api/updateBudget", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ budget_id: currentBudgetID, total_budget: totalNum, categories: newCategories }),
+      body: JSON.stringify({ budget_id: currentBudgetID, total_budget: totalNum, categories: newCategories, month: currentMonth }),
     })
       .then((r) => r.json())
       .then(() => {
-        setAllBudgets((prev) => ({
-          ...prev,
-          [currentBudgetID]: { ...prev[currentBudgetID], budget_amount: totalNum },
-        }));
+        updateBudgetCache(currentBudgetID, totalNum, newCategories);
         setCurrentCategories(newCategories);
         setIsEditing(false);
         setSaved(true);

@@ -103,6 +103,14 @@ export function BudgetProvider({ children }) {
     setCurrentTransactions(allTransactions[id] ?? []);
   }
 
+  function updateBudgetCache(budgetID, newBudgetAmount, newCategories) {
+    const updatedBudgets    = { ...allBudgets,    [budgetID]: { ...allBudgets[budgetID], budget_amount: newBudgetAmount } };
+    const updatedCategories = { ...allCategories, [budgetID]: newCategories };
+    setAllBudgets(updatedBudgets);
+    setAllCategories(updatedCategories);
+    saveCache({ month: currentMonth, allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions });
+  }
+
   return (
     <budgetContext.Provider value={{
       currentMonth, setCurrentMonth,
@@ -112,6 +120,7 @@ export function BudgetProvider({ children }) {
       allBudgets, setAllBudgets,
       allCategories, setAllCategories,
       allTransactions, setAllTransactions,
+      updateBudgetCache,
       isLoading,
       isRefreshing,
     }}>
