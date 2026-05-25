@@ -117,7 +117,8 @@ async def add_transaction(request: Request, current_username: str = Depends(get_
 		data.get("description", ""),
 		data.get("budget_id"),
 	)
-	logger.info("POST /addTransaction — user=%s category=%s amount=%s budget_id=%s", current_username, data.get("category"), data.get("amount"), data.get("budget_id"))
+	logger.info("POST /addTransaction — user=%s user_id=%s category=%s amount=%s date=%s description=%s budget_id=%s new_id=%s",
+		current_username, user["id"], data.get("category"), data.get("amount"), data.get("date"), data.get("description"), data.get("budget_id"), new_id)
 	return {"message": "Transaction added successfully", "id": new_id}
 
 @protected_router.delete("/deleteTransaction/{transaction_id}")
@@ -128,7 +129,7 @@ def delete_transaction(transaction_id: str, current_username: str = Depends(get_
 		raise HTTPException(status_code=404, detail="User not found")
 
 	db_delete_transaction(transaction_id, user["id"])
-	logger.info("DELETE /deleteTransaction — id=%s user=%s", transaction_id, current_username)
+	logger.info("DELETE /deleteTransaction — transaction_id=%s user=%s user_id=%s", transaction_id, current_username, user["id"])
 	return {"message": "Transaction deleted successfully"}
 
 @protected_router.put("/updateTransaction")
@@ -148,7 +149,8 @@ async def update_transaction(request: Request, current_username: str = Depends(g
 		user["id"],
 		data.get("budget_id")
 	)
-	logger.info("PUT /updateTransaction — id=%s user=%s budget_id=%s", data.get("id"), current_username, data.get("budget_id"))
+	logger.info("PUT /updateTransaction — transaction_id=%s user=%s user_id=%s category=%s amount=%s date=%s description=%s budget_id=%s",
+		data.get("id"), current_username, user["id"], data.get("category"), data.get("amount"), data.get("date"), data.get("description"), data.get("budget_id"))
 	return {"message": "Transaction updated successfully"}
 
 @protected_router.post("/createBudget")
@@ -168,7 +170,8 @@ async def create_budget(request: Request, current_username: str = Depends(get_cu
 		data.get("description", "New Budget"),
 		data.get("categories", []),
 	)
-	logger.info("POST /createBudget — user=%s month=%s total=%s", current_username, month_str, data.get("total_budget"))
+	logger.info("POST /createBudget — user=%s user_id=%s month=%s total=%s description=%s categories=%d new_id=%s",
+		current_username, user["id"], month_str, data.get("total_budget"), data.get("description"), len(data.get("categories", [])), new_id)
 	return {"message": "Budget created successfully", "id": new_id}
 
 @protected_router.post("/updateBudget")
@@ -189,7 +192,8 @@ async def save_budget(request: Request, current_username: str = Depends(get_curr
 		logger.warning("POST /updateBudget — budget_id=%s not found for user=%s", budget_id, current_username)
 		raise HTTPException(status_code=403, detail="Budget not found")
 
-	logger.info("POST /updateBudget — budget_id=%s user=%s new_budget=%s", budget_id, current_username, data.get("total_budget"))
+	logger.info("POST /updateBudget — budget_id=%s user=%s user_id=%s month=%s new_budget=%s categories=%d",
+		budget_id, current_username, user["id"], data.get("month"), data.get("total_budget"), len(data.get("categories", [])))
 	return {"message": "Budget saved successfully"}
 
 @protected_router.get("/getBudget")
@@ -249,7 +253,7 @@ def get_finance_data(month: str, current_username: str = Depends(get_current_use
 
 	data = db_get_finance_data(user["id"], month)
 
-	logger.info("GET /get_finance_data — sending data back")
+	logger.info("GET /get_finance_data — user=%s user_id=%s month=%s", current_username, user["id"], month)
 
 	return data
 
