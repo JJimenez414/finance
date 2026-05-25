@@ -209,7 +209,7 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
     fetch("/api/updateTransaction", {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ id: editingTransaction.id, ...vals }),
+      body: JSON.stringify({ budget_id: currentBudgetID, id: editingTransaction.id, ...vals }),
     }).catch(console.error);
   }
 
