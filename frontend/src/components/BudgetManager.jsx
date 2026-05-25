@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Check, AlertTriangle, Pencil, X } from "lucide-react";
+import { Check, AlertTriangle, Pencil, X, Plus } from "lucide-react";
 import LoadingScreen from "./LoadingScreen";
 import BudgetHero from "./BudgetHero";
 import CategoryCard from "./CategoryCard";
+import CreateBudgetModal from "./CreateBudgetModal";
 import { useBudgetContext } from "../context/useBudgetContext";
 
 const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
@@ -21,15 +22,17 @@ export default function BudgetManager() {
     currentCategories, setCurrentCategories,
     allBudgets,
     updateBudgetCache,
+    addBudgetToCache,
     isLoading,
   } = useBudgetContext();
 
-  const [totalBudget, setTotalBudget] = useState("");
-  const [cats, setCats]               = useState(empty());
-  const [saved, setSaved]             = useState(false);
-  const [error, setError]             = useState("");
-  const [isEditing, setIsEditing]     = useState(false);
-  const [snapshot, setSnapshot]       = useState({ totalBudget: "", cats: empty() });
+  const [totalBudget, setTotalBudget]   = useState("");
+  const [cats, setCats]                 = useState(empty());
+  const [saved, setSaved]               = useState(false);
+  const [error, setError]               = useState("");
+  const [isEditing, setIsEditing]       = useState(false);
+  const [snapshot, setSnapshot]         = useState({ totalBudget: "", cats: empty() });
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
     const budget = allBudgets[currentBudgetID];
@@ -114,15 +117,26 @@ export default function BudgetManager() {
       <div className="px-4 pt-6 pb-28">
         <div className="flex items-center justify-between mb-3 px-1">
           <p className="text-xs font-medium text-white/30 uppercase tracking-widest">Allocations</p>
-          {!isEditing && (
-            <button
-              onClick={handleEdit}
-              className="flex items-center gap-1.5 px-3 h-7 text-xs font-semibold text-white/60 transition-opacity hover:opacity-80"
-              style={{ background: "rgba(255,255,255,0.07)", borderRadius: "8px", border: "none", cursor: "pointer" }}
-            >
-              <Pencil className="w-3 h-3" /> Edit
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {!isEditing && (
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="flex items-center gap-1.5 px-3 h-7 text-xs font-semibold text-white/60 transition-opacity hover:opacity-80"
+                style={{ background: "rgba(255,255,255,0.07)", borderRadius: "8px", border: "none", cursor: "pointer" }}
+              >
+                <Plus className="w-3 h-3" /> New
+              </button>
+            )}
+            {!isEditing && (
+              <button
+                onClick={handleEdit}
+                className="flex items-center gap-1.5 px-3 h-7 text-xs font-semibold text-white/60 transition-opacity hover:opacity-80"
+                style={{ background: "rgba(255,255,255,0.07)", borderRadius: "8px", border: "none", cursor: "pointer" }}
+              >
+                <Pencil className="w-3 h-3" /> Edit
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -177,6 +191,13 @@ export default function BudgetManager() {
           </div>
         )}
       </div>
+
+      <CreateBudgetModal
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        currentMonth={currentMonth}
+        onCreated={addBudgetToCache}
+      />
     </div>
   );
 }

@@ -159,7 +159,7 @@ async def create_budget(request: Request, current_username: str = Depends(get_cu
 		raise HTTPException(status_code=404, detail="User not found")
 
 	month_str = data.get("month")
-	db_create_budget(
+	new_id = db_create_budget(
 		user["id"],
 		data.get("total_budget"),
 		f"{month_str}-01" if month_str else None,
@@ -168,7 +168,7 @@ async def create_budget(request: Request, current_username: str = Depends(get_cu
 		data.get("categories", []),
 	)
 	logger.info("POST /createBudget — user=%s month=%s total=%s", current_username, month_str, data.get("total_budget"))
-	return {"message": "Budget created successfully"}
+	return {"message": "Budget created successfully", "id": new_id}
 
 @protected_router.post("/updateBudget")
 async def save_budget(request: Request, current_username: str = Depends(get_current_user)):

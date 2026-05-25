@@ -111,6 +111,20 @@ export function BudgetProvider({ children }) {
     saveCache({ month: currentMonth, allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions });
   }
 
+  function addBudgetToCache({ id, description, total_budget, categories }) {
+    const updatedBudgets    = { ...allBudgets,    [id]: { budget_amount: total_budget, description } };
+    const updatedCategories = { ...allCategories, [id]: categories };
+    const updatedTransactions = { ...allTransactions, [id]: [] };
+    setAllBudgets(updatedBudgets);
+    setAllCategories(updatedCategories);
+    setAllTransactions(updatedTransactions);
+    setCurrentBudgetID(id);
+    setCurrentCategories(categories);
+    setCurrentTransactions([]);
+    localStorage.setItem("finance_budget_id", id);
+    saveCache({ month: currentMonth, allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions: updatedTransactions });
+  }
+
   return (
     <budgetContext.Provider value={{
       currentMonth, setCurrentMonth,
@@ -121,6 +135,7 @@ export function BudgetProvider({ children }) {
       allCategories, setAllCategories,
       allTransactions, setAllTransactions,
       updateBudgetCache,
+      addBudgetToCache,
       isLoading,
       isRefreshing,
     }}>
