@@ -156,6 +156,8 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
   const [activeCategory, setActiveCategory] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [activeTab, setActiveTab] = useState("categories");
+  const [filterText, setFilterText] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
 
   const totalBudget = Number(allBudgets[currentBudgetID]?.budget_amount) || 0;
 
@@ -300,11 +302,46 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
       )}
 
       {activeTab === "transactions" && (
-        <TransactionList
-          transactions={currentTransactions}
-          onEdit={setEditingTransaction}
-          onDelete={handleDelete}
-        />
+        <>
+          <div className="px-4 pb-3 flex gap-2 flex-shrink-0">
+            <input
+              type="text"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              placeholder="Search transactions..."
+              className="flex-1 h-9 px-3 text-xs text-white placeholder:text-white/30 focus:outline-none"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "8px",
+              }}
+            />
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="h-9 px-3 text-xs text-white/70 focus:outline-none appearance-none cursor-pointer"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "8px",
+              }}
+            >
+              <option value="" style={{ background: "#0c1a2e" }}>All</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c} style={{ background: "#0c1a2e" }}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <TransactionList
+            transactions={(currentTransactions ?? []).filter((t) => {
+              const matchText = !filterText || t.description?.toLowerCase().includes(filterText.toLowerCase()) || String(t.amount).includes(filterText);
+              const matchCat  = !filterCategory || t.category === filterCategory;
+              return matchText && matchCat;
+            })}
+            onEdit={setEditingTransaction}
+            onDelete={handleDelete}
+          />
+        </>
       )}
 
       {/* Category transactions sheet */}
