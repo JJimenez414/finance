@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { Check, AlertTriangle } from "lucide-react";
+import { Check, AlertTriangle, Pencil, X, Plus } from "lucide-react";
 import LoadingScreen from "./LoadingScreen";
+import BudgetHero from "./BudgetHero";
+import CategoryCard from "./CategoryCard";
+import CreateBudgetModal from "./CreateBudgetModal";
 import { useBudgetContext } from "../context/useBudgetContext";
 
 const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
@@ -69,19 +72,23 @@ export default function BudgetManager() {
     currentCategories,
     setCurrentCategories,
     allBudgets,
-    setAllBudgets,
+    updateBudgetCache,
+    addBudgetToCache,
     isLoading,
   } = useBudgetContext();
 
-  const [totalBudget, setTotalBudget] = useState("");
-  const [cats, setCats]               = useState(empty());
-  const [saved, setSaved]             = useState(false);
-  const [error, setError]             = useState("");
+  const [totalBudget, setTotalBudget]   = useState("");
+  const [cats, setCats]                 = useState(empty());
+  const [saved, setSaved]               = useState(false);
+  const [error, setError]               = useState("");
+  const [isEditing, setIsEditing]       = useState(false);
+  const [snapshot, setSnapshot]         = useState({ totalBudget: "", cats: empty() });
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  // Sync local edit state when context data changes (e.g. month switch)
   useEffect(() => {
     const budget = allBudgets[currentBudgetID];
     setTotalBudget(budget ? String(budget.budget_amount) : "");
+    setIsEditing(false);
   }, [currentBudgetID, allBudgets]);
 
   useEffect(() => {
@@ -89,6 +96,7 @@ export default function BudgetManager() {
     const b = empty();
     currentCategories.forEach((c) => { b[c.category] = String(c.amount ?? ""); });
     setCats(b);
+    setIsEditing(false);
   }, [currentCategories]);
 
   const allocated  = Object.values(cats).reduce((s, v) => s + (Number(v) || 0), 0);
@@ -96,7 +104,25 @@ export default function BudgetManager() {
   const remaining  = totalNum - allocated;
   const isBalanced = totalNum > 0 && Math.round(allocated * 100) === Math.round(totalNum * 100);
 
-  function handleSave() {
+  function handleEdit() {
+    setSnapshot({ totalBudget, cats: { ...cats } });
+    setIsEditing(true);
+    setError("");
+  }
+
+  function handleCancel() {
+    setTotalBudget(snapshot.totalBudget);
+    setCats(snapshot.cats);
+    setIsEditing(false);
+    setError("");
+  }
+
+  function handleCatChange(cat, value) {
+    setCats((prev) => ({ ...prev, [cat]: value }));
+    setError("");
+  }
+
+  function handleUpdate() {
     if (!totalNum || totalNum <= 0) { setError("Enter a valid total budget."); return; }
     if (!isBalanced) {
       setError(`Allocations must equal $${totalNum.toFixed(2)}. Currently $${allocated.toFixed(2)}.`);
@@ -108,19 +134,16 @@ export default function BudgetManager() {
       .filter(([, v]) => v)
       .map(([category, amount]) => ({ category, amount: Number(amount) }));
 
-    fetch("/api/saveBudget", {
+    fetch("/api/updateBudget", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ budget_id: currentBudgetID, total_budget: totalNum, categories: newCategories }),
     })
       .then((r) => r.json())
       .then(() => {
-        // Update context so FinanceTracker reflects saved values immediately
-        setAllBudgets((prev) => ({
-          ...prev,
-          [currentBudgetID]: { ...prev[currentBudgetID], budget_amount: totalNum },
-        }));
+        updateBudgetCache(currentBudgetID, totalNum, newCategories);
         setCurrentCategories(newCategories);
+        setIsEditing(false);
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       })
@@ -190,56 +213,17 @@ export default function BudgetManager() {
         </div>
       </div>
 
-      {/* Allocations */}
-      <div className="px-4 pt-6 pb-28">
-        <p className="text-xs font-medium text-white/30 uppercase tracking-widest mb-3 px-1">Allocations</p>
         <div className="grid grid-cols-2 gap-2.5">
-          {CATEGORIES.map((cat) => {
-            const val   = cats[cat];
-            const num   = Number(val) || 0;
-            const color = CATEGORY_COLORS[cat];
-            const pct   = totalNum > 0 && num > 0 ? ((num / totalNum) * 100).toFixed(0) : null;
-
-            return (
-              <div
-                key={cat}
-                style={{
-                  background: "#13131e",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  borderLeft: `3px solid ${color}`,
-                  borderRadius: "12px",
-                }}
-              >
-                <div className="p-3.5">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <p className="text-sm font-semibold text-white">{cat}</p>
-                    {pct && <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>{pct}%</span>}
-                  </div>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style={{ color: "rgba(255,255,255,0.3)" }}>$</span>
-                    <input
-                      type="number" step="0.01" min="0"
-                      value={val}
-                      onChange={(e) => { setCats((p) => ({ ...p, [cat]: e.target.value })); setSaved(false); setError(""); }}
-                      placeholder="0.00"
-                      className="w-full h-9 text-sm text-white placeholder:text-white/20 focus:outline-none transition-colors"
-                      style={{
-                        background: "rgba(255,255,255,0.05)",
-                        border: "1px solid rgba(255,255,255,0.09)",
-                        borderRadius: "8px",
-                        paddingLeft: "22px",
-                        paddingRight: "10px",
-                        WebkitAppearance: "none",
-                        appearance: "none",
-                      }}
-                      onFocus={(e) => { e.target.style.borderColor = color + "66"; }}
-                      onBlur={(e)  => { e.target.style.borderColor = "rgba(255,255,255,0.09)"; }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {CATEGORIES.map((cat) => (
+            <CategoryCard
+              key={cat}
+              cat={cat}
+              value={cats[cat]}
+              totalNum={totalNum}
+              isEditing={isEditing}
+              onChange={handleCatChange}
+            />
+          ))}
         </div>
 
         {error && (
@@ -255,21 +239,39 @@ export default function BudgetManager() {
           </div>
         )}
 
-        <button
-          onClick={handleSave}
-          className="mt-4 w-full text-white text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-75"
-          style={{
-            height: "48px",
-            background: "linear-gradient(135deg, #14b8a6, #0ea5e9)",
-            border: "none",
-            borderRadius: "12px",
-            cursor: "pointer",
-            boxShadow: "0 4px 20px rgba(20,184,166,0.25)",
-          }}
-        >
-          Save budget
-        </button>
+        {isEditing && (
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={handleCancel}
+              className="flex-1 flex items-center justify-center gap-2 text-white/60 text-sm font-semibold transition-opacity hover:opacity-80"
+              style={{
+                height: "48px", background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", cursor: "pointer",
+              }}
+            >
+              <X className="w-4 h-4" /> Cancel
+            </button>
+            <button
+              onClick={handleUpdate}
+              className="flex-1 text-white text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-75"
+              style={{
+                height: "48px", background: "linear-gradient(135deg, #14b8a6, #0ea5e9)",
+                border: "none", borderRadius: "12px", cursor: "pointer",
+                boxShadow: "0 4px 20px rgba(20,184,166,0.25)",
+              }}
+            >
+              Update
+            </button>
+          </div>
+        )}
       </div>
+
+      <CreateBudgetModal
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        currentMonth={currentMonth}
+        onCreated={addBudgetToCache}
+      />
     </div>
   );
 }

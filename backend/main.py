@@ -14,7 +14,7 @@ from db import (
 	db_delete_transaction,
 	db_update_transaction,
 	db_create_budget,
-	db_save_budget,
+	db_update_budget,
 	db_get_budget,
 	db_get_all_budgets,
 	db_get_budget_categories,
@@ -128,7 +128,7 @@ def delete_transaction(transaction_id: str, current_username: str = Depends(get_
 		raise HTTPException(status_code=404, detail="User not found")
 
 	db_delete_transaction(transaction_id, user["id"])
-	logger.info("DELETE /deleteTransaction — id=%s user=%s", transaction_id, current_username)
+	logger.info("DELETE /deleteTransaction — transaction_id=%s user=%s user_id=%s", transaction_id, current_username, user["id"])
 	return {"message": "Transaction deleted successfully"}
 
 @protected_router.put("/updateTransaction")
@@ -146,8 +146,10 @@ async def update_transaction(request: Request, current_username: str = Depends(g
 		data.get("description"),
 		data.get("date"),
 		user["id"],
+		data.get("budget_id")
 	)
-	logger.info("PUT /updateTransaction — id=%s user=%s", data.get("id"), current_username)
+	logger.info("PUT /updateTransaction — transaction_id=%s user=%s user_id=%s category=%s amount=%s date=%s description=%s budget_id=%s",
+		data.get("id"), current_username, user["id"], data.get("category"), data.get("amount"), data.get("date"), data.get("description"), data.get("budget_id"))
 	return {"message": "Transaction updated successfully"}
 
 @protected_router.post("/createBudget")
@@ -167,25 +169,26 @@ async def create_budget(request: Request, current_username: str = Depends(get_cu
 	logger.info("POST /createBudget — user=%s total=%s", current_username, data.get("total_budget"))
 	return {"message": "Budget created successfully"}
 
-@protected_router.post("/saveBudget")
+@protected_router.post("/updateBudget")
 async def save_budget(request: Request, current_username: str = Depends(get_current_user)):
 	data = await request.json()
 	user = get_user_by_username(current_username)
 	if user is None:
-		logger.warning("POST /saveBudget — user not found: %s", current_username)
+		logger.warning("POST /updateBudget — user not found: %s", current_username)
 		raise HTTPException(status_code=404, detail="User not found")
 
 	budget_id = data.get("budget_id")
 	if not budget_id:
-		logger.warning("POST /saveBudget — missing budget_id for user=%s", current_username)
+		logger.warning("POST /updateBudget — missing budget_id for user=%s", current_username)
 		raise HTTPException(status_code=400, detail="budget_id is required")
 
 	ok = db_save_budget(budget_id, user["id"], data.get("categories", []))
 	if not ok:
-		logger.warning("POST /saveBudget — budget_id=%s not found for user=%s", budget_id, current_username)
+		logger.warning("POST /updateBudget — budget_id=%s not found for user=%s", budget_id, current_username)
 		raise HTTPException(status_code=403, detail="Budget not found")
 
-	logger.info("POST /saveBudget — budget_id=%s user=%s", budget_id, current_username)
+	logger.info("POST /updateBudget — budget_id=%s user=%s user_id=%s month=%s new_budget=%s categories=%d",
+		budget_id, current_username, user["id"], data.get("month"), data.get("total_budget"), len(data.get("categories", [])))
 	return {"message": "Budget saved successfully"}
 
 @protected_router.get("/getBudget")
