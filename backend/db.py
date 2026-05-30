@@ -22,66 +22,56 @@ def get_db_connection():
 		logger.error("DB connection failed: %s", e)
 		raise
 
-def db_get_finance_data(user_id, month):
+def db_get_finance_data(user_id):
 	conn = get_db_connection()
 	cur = conn.cursor()
 
-	data = {}
-
-	# get current budget, and all related budgets related to user. 
 	cur.execute(
-		"SELECT id, total_budget, description FROM user_budget WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s ORDER BY created_at DESC;",
-		(user_id, month)
+		"SELECT id, total_budget, description FROM user_budget WHERE user_id = %s ORDER BY created_at DESC;",
+		(user_id,)
 	)
 	budget_rows = cur.fetchall()
 	if not budget_rows:
 		cur.close()
 		conn.close()
 		return None
-	
-	parsed_budgets = {row[0]: {"budget_amount": float(row[1]), "description": row[2]} for row in budget_rows}
 
+	parsed_budgets = {row[0]: {"budget_amount": float(row[1]), "description": row[2]} for row in budget_rows}
 	logger.info("Received %d budgets", len(parsed_budgets))
 
 	cur.execute(
-		"SELECT budget_id, json_agg(json_build_object('category', category, 'amount', budget_amount)) AS categories FROM budgets WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s  GROUP BY budget_id ORDER BY budget_id;",
-		(user_id, month)
+		"SELECT budget_id, json_agg(json_build_object('category', category, 'amount', budget_amount)) AS categories FROM budgets WHERE user_id = %s GROUP BY budget_id ORDER BY budget_id;",
+		(user_id,)
 	)
-	categories_rows = cur.fetchall()
-	categories_by_budget = {row[0]: row[1] for row in categories_rows}
-	
+	categories_by_budget = {row[0]: row[1] for row in cur.fetchall()}
 	logger.info("Received %d category budgets", len(categories_by_budget))
 
-	# get transaction
-	transactions = db_get_month_data(user_id, month)
-
-	formatted_transactions = {}                                                                                                                                                                                                                                 
-	for row in transactions:                                                                                                                                                                                                                                    
-		budget_id = row[5]                                                                                                                                                                                                                                      
-		transaction = {                                                                                                                                                                                                                                         
-			"id": row[0],                                                                                                                                                                                                                                       
-			"description": row[1],                                                                                                                                                                                                                              
-			"date": str(row[2]),                                                                                                                                                                                                                                
-			"category": row[3],                 
-			"amount": float(row[4]),        
+	transactions = db_get_transactions(user_id)
+	formatted_transactions = {}
+	for row in transactions:
+		budget_id = row[5]
+		transaction = {
+			"id": row[0],
+			"description": row[1],
+			"date": str(row[2]),
+			"category": row[3],
+			"amount": float(row[4]),
 		}
-		if budget_id not in formatted_transactions:                                                                                                                                                                                                             
+		if budget_id not in formatted_transactions:
 			formatted_transactions[budget_id] = []
-		formatted_transactions[budget_id].append(transaction)  
+		formatted_transactions[budget_id].append(transaction)
 
 	logger.info("Received %d transactions", len(transactions))
-
-	data["all_transaction"] = formatted_transactions
-	data["all_budgets"] = parsed_budgets
-	data["all_categories"] = categories_by_budget
-
-	logger.info("Data has been formatted and loaded")
 
 	cur.close()
 	conn.close()
 
-	return data
- 
+	return {
+		"all_transaction": formatted_transactions,
+		"all_budgets": parsed_budgets,
+		"all_categories": categories_by_budget,
+	}
+
 def get_user_by_username(username: str):
 	conn = get_db_connection()
 	cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -135,6 +125,24 @@ def db_add_transaction(user_id, date, category, amount, description, budget_id):
 	conn.close()
 	return new_id
 
+def db_get_transactions(user_id, budget_id=None) -> list:
+	conn = get_db_connection()
+	cur = conn.cursor()
+	if budget_id is not None:
+		cur.execute(
+			"SELECT id, description, transaction_date, category, amount, budget_id FROM transactions WHERE user_id = %s AND budget_id = %s ORDER BY transaction_date DESC;",
+			(user_id, budget_id)
+		)
+	else:
+		cur.execute(
+			"SELECT id, description, transaction_date, category, amount, budget_id FROM transactions WHERE user_id = %s ORDER BY transaction_date DESC;",
+			(user_id,)
+		)
+	rows = cur.fetchall()
+	cur.close()
+	conn.close()
+	return rows
+
 def db_delete_transaction(transaction_id, user_id):
 	conn = get_db_connection()
 	cur = conn.cursor()
@@ -157,12 +165,12 @@ def db_update_transaction(tran_id, amount, category, description, date, user_id)
 	cur.close()
 	conn.close()
 
-def db_create_budget(user_id, total_budget, month_date, full_month, description, categories) -> int:
+def db_create_budget(user_id, total_budget, description, categories) -> int:
 	conn = get_db_connection()
 	cur = conn.cursor()
 	cur.execute(
-		"INSERT INTO user_budget (user_id, total_budget, month, description, period) VALUES (%s, %s, %s, %s, %s) RETURNING id;",
-		(user_id, total_budget, month_date, description, "monthly")
+		"INSERT INTO user_budget (user_id, total_budget, description, period) VALUES (%s, %s, %s, %s) RETURNING id;",
+		(user_id, total_budget, description, "monthly")
 	)
 	new_budget_id = cur.fetchone()[0]
 	for category in categories:
@@ -171,16 +179,15 @@ def db_create_budget(user_id, total_budget, month_date, full_month, description,
 		if not name:
 			continue
 		cur.execute(
-			"INSERT INTO budgets (user_id, category, budget_amount, month, budget_id) VALUES (%s, %s, %s, %s, %s);",
-			(user_id, name, amount, full_month, new_budget_id)
+			"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, %s, %s);",
+			(user_id, name, amount, new_budget_id)
 		)
 	conn.commit()
 	cur.close()
 	conn.close()
 	return new_budget_id
 
-def db_save_budget(budget_id, user_id, month_str, categories):
-	full_month = f"{month_str}-01 00:00:00" if month_str else None
+def db_save_budget(budget_id, user_id, categories):
 	conn = get_db_connection()
 	cur = conn.cursor()
 	cur.execute(
@@ -201,20 +208,20 @@ def db_save_budget(budget_id, user_id, month_str, categories):
 		if not name:
 			continue
 		cur.execute(
-			"INSERT INTO budgets (user_id, category, budget_amount, month, budget_id) VALUES (%s, %s, %s, %s, %s);",
-			(user_id, name, amount, full_month, budget_id)
+			"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, %s, %s);",
+			(user_id, name, amount, budget_id)
 		)
 	conn.commit()
 	cur.close()
 	conn.close()
 	return True
 
-def db_get_budget(user_id, month: str):
+def db_get_budget(user_id):
 	conn = get_db_connection()
 	cur = conn.cursor()
 	cur.execute(
-		"SELECT id, total_budget, description FROM user_budget WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s ORDER BY created_at DESC;",
-		(user_id, month)
+		"SELECT id, total_budget, description FROM user_budget WHERE user_id = %s ORDER BY created_at DESC;",
+		(user_id,)
 	)
 	budget_rows = cur.fetchall()
 	if not budget_rows:
@@ -231,19 +238,16 @@ def db_get_budget(user_id, month: str):
 	conn.close()
 	return {"total_budgets": parsed_budgets, "categories": categories}
 
-def db_get_monthly_budget(user_id, month: str) -> list:
+def db_get_all_budgets(user_id) -> list:
 	conn = get_db_connection()
 	cur = conn.cursor()
 	cur.execute(
-		"SELECT id, total_budget, description FROM user_budget WHERE user_id = %s AND TO_CHAR(month, 'YYYY-MM') = %s ORDER BY created_at DESC;",
-		(user_id, month)
+		"SELECT id, total_budget, description FROM user_budget WHERE user_id = %s ORDER BY created_at DESC;",
+		(user_id,)
 	)
 	rows = cur.fetchall()
 	cur.close()
 	conn.close()
-
-	logger.info("USER ID: %s, TOTAL BUDGET: %s, DESCRIPTION: %s", rows[0][0], rows[0][1], rows[0][2])
-
 	return [{"id": row[0], "total_budget": float(row[1]), "description": row[2] or ""} for row in rows]
 
 def db_get_budget_categories(budget_id, user_id) -> list:
@@ -257,21 +261,3 @@ def db_get_budget_categories(budget_id, user_id) -> list:
 	cur.close()
 	conn.close()
 	return [{"category": row[0], "amount": float(row[1])} for row in rows]
-
-def db_get_month_data(user_id, month: str, budget_id=None) -> list:
-	conn = get_db_connection()
-	cur = conn.cursor()
-	if budget_id is not None:
-		cur.execute(
-			"SELECT id, description, transaction_date, category, amount, budget_id FROM transactions WHERE user_id = %s AND TO_CHAR(transaction_date, 'YYYY-MM') = %s AND budget_id = %s ORDER BY created_at DESC;",
-			(user_id, month, budget_id)
-		)
-	else:
-		cur.execute(
-			"SELECT id, description, transaction_date, category, amount, budget_id FROM transactions WHERE user_id = %s AND TO_CHAR(transaction_date, 'YYYY-MM') = %s ORDER BY created_at DESC;",
-			(user_id, month)
-		)
-	rows = cur.fetchall()
-	cur.close()
-	conn.close()
-	return rows

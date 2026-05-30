@@ -14,18 +14,6 @@ const CATEGORY_COLORS = {
   Give:           "#a3e635",
 };
 
-const MONTH_OPTIONS = (() => {
-  const opts = [];
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    opts.push({
-      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: d.toLocaleString("default", { month: "long", year: "numeric" }),
-    });
-  }
-  return opts;
-})();
 
 function AllocationRing({ allocated, total }) {
   const pct = total > 0 ? Math.min(allocated / total, 1) : 0;
@@ -76,8 +64,6 @@ function authHeaders() {
 
 export default function BudgetManager() {
   const {
-    currentMonth,
-    setCurrentMonth,
     currentBudgetID,
     selectBudget,
     currentCategories,
@@ -125,7 +111,7 @@ export default function BudgetManager() {
     fetch("/api/saveBudget", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ total_budget: totalNum, categories: newCategories }),
+      body: JSON.stringify({ budget_id: currentBudgetID, total_budget: totalNum, categories: newCategories }),
     })
       .then((r) => r.json())
       .then(() => {
@@ -154,26 +140,13 @@ export default function BudgetManager() {
           borderRadius: "0 0 28px 28px",
         }}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-5">
           <h1 className="text-lg font-bold text-white tracking-tight">Budget Manager</h1>
-          <select
-            value={currentMonth}
-            onChange={(e) => setCurrentMonth(e.target.value)}
-            className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
-            style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
-          >
-            {MONTH_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value} style={{ background: "#0c1a2e" }}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {Object.keys(allBudgets).length > 0 && (
-          <div className="flex justify-end mb-5">
+          {Object.keys(allBudgets).length > 0 && (
             <select
               value={currentBudgetID ?? ""}
               onChange={(e) => selectBudget(e.target.value)}
-              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
+              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer max-w-[160px] truncate"
               style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
             >
               {Object.entries(allBudgets).map(([id, b]) => (
@@ -182,8 +155,8 @@ export default function BudgetManager() {
                 </option>
               ))}
             </select>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="flex items-center gap-6">
           <AllocationRing allocated={allocated} total={totalNum} />
