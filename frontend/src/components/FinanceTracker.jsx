@@ -39,8 +39,8 @@ function authHeaders() {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-function RingProgress({ spent, total }) {
-  const pct = total > 0 ? Math.min(spent / total, 1) : 0;
+function RingProgress({ left, total }) {
+  const pct = total > 0 ? Math.min(left / total, 1) : 0;
   const r = 88;
   const cx = 110; const cy = 110;
   const circumference = 2 * Math.PI * r;
@@ -70,7 +70,7 @@ function RingProgress({ spent, total }) {
           style={{ transition: "stroke-dashoffset 0.6s ease" }}
         />
       )}
-      <text x={cx} y={cy - 10} textAnchor="middle" fill="white" fontSize="28" fontWeight="700" fontFamily="system-ui">${spent.toFixed(0)}</text>
+      <text x={cx} y={cy - 10} textAnchor="middle" fill="white" fontSize="28" fontWeight="700" fontFamily="system-ui">${left.toFixed(0)}</text>
       <text x={cx} y={cy + 23} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="18" fontFamily="system-ui">of ${total.toFixed(0)}</text>
     </svg>
   );
@@ -164,8 +164,8 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
     [currentCategories]
   );
 
-  const totalSpent = useMemo(() =>
-    (currentTransactions ?? []).reduce((s, p) => s + p.amount, 0),
+  const totalLeftOver = useMemo(() =>
+    totalBudget - (currentTransactions ?? []).reduce((s, p) => s + p.amount, 0),
     [currentTransactions]
   );
 
@@ -269,7 +269,7 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
         )}
 
         <div className="flex justify-center">
-          <RingProgress spent={totalSpent} total={totalBudget} />
+          <RingProgress left={totalLeftOver} total={totalBudget} />
         </div>
       </div>
 
