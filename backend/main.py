@@ -14,7 +14,6 @@ from db import (
 	db_delete_transaction,
 	db_update_transaction,
 	db_create_budget,
-	db_update_budget,
 	db_get_budget,
 	db_get_all_budgets,
 	db_get_budget_categories,
