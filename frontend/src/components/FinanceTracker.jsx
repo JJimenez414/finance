@@ -16,18 +16,6 @@ const CATEGORY_COLORS = {
   Give:           "#a3e635",
 };
 
-const MONTH_OPTIONS = (() => {
-  const opts = [];
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    opts.push({
-      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: d.toLocaleString("default", { month: "long", year: "numeric" }),
-    });
-  }
-  return opts;
-})();
 
 function getTodayDate() {
   const now = new Date();
@@ -141,8 +129,6 @@ function TransactionForm({ defaultValues = {}, onSubmit, submitLabel }) {
 
 export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransactionOpen }) {
   const {
-    currentMonth,
-    setCurrentMonth,
     currentBudgetID,
     selectBudget,
     currentTransactions,
@@ -237,26 +223,13 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
           borderRadius: "0 0 28px 28px",
         }}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-5">
           <h1 className="text-lg font-bold text-white tracking-tight">Finance Tracker</h1>
-          <select
-            value={currentMonth}
-            onChange={(e) => setCurrentMonth(e.target.value)}
-            className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
-            style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
-          >
-            {MONTH_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value} style={{ background: "#0c1a2e" }}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {Object.keys(allBudgets).length > 0 && (
-          <div className="flex justify-end mb-5">
+          {Object.keys(allBudgets).length > 0 && (
             <select
               value={currentBudgetID ?? ""}
               onChange={(e) => selectBudget(e.target.value)}
-              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
+              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer max-w-[160px] truncate"
               style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
             >
               {Object.entries(allBudgets).map(([id, b]) => (
@@ -265,8 +238,8 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
                 </option>
               ))}
             </select>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="flex justify-center">
           <RingProgress left={totalLeftOver} total={totalBudget} />
