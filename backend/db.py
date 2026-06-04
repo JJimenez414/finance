@@ -36,7 +36,6 @@ def db_get_finance_data(user_id):
 		conn.close()
 		return None
 
-
 	parsed_budgets = {row[0]: {"budget_amount": float(row[1]), "description": row[2]} for row in budget_rows}
 	logger.info("Received %d budgets", len(parsed_budgets))
 
@@ -59,9 +58,7 @@ def db_get_finance_data(user_id):
 			"amount": float(row[4]),
 		}
 		if budget_id not in formatted_transactions:
-		if budget_id not in formatted_transactions:
 			formatted_transactions[budget_id] = []
-		formatted_transactions[budget_id].append(transaction)
 		formatted_transactions[budget_id].append(transaction)
 
 	logger.info("Received %d transactions", len(transactions))
