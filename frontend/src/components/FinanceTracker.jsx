@@ -4,43 +4,16 @@ import CategoryGrid from "./CategoryGrid";
 import TransactionList from "./TransactionList";
 import LoadingScreen from "./LoadingScreen";
 import { useBudgetContext } from "../context/useBudgetContext";
-
-const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
-
-const CATEGORY_COLORS = {
-  Living:         "#14b8a6",
-  Food:           "#f59e0b",
-  Transportation: "#60a5fa",
-  Finance:        "#a78bfa",
-  Miscellaneous:  "#f472b6",
-  Give:           "#a3e635",
-};
-
-const MONTH_OPTIONS = (() => {
-  const opts = [];
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    opts.push({
-      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: d.toLocaleString("default", { month: "long", year: "numeric" }),
-    });
-  }
-  return opts;
-})();
+import { CATEGORIES, CATEGORY_COLORS } from "../constants";
+import { authHeaders } from "../utils/auth";
 
 function getTodayDate() {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split("T")[0];
 }
 
-function authHeaders() {
-  const t = localStorage.getItem("jmz_finance_access_token");
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}
-
-function RingProgress({ spent, total }) {
-  const pct = total > 0 ? Math.min(spent / total, 1) : 0;
+function RingProgress({ left, total }) {
+  const pct = total > 0 ? Math.min(left / total, 1) : 0;
   const r = 88;
   const cx = 110; const cy = 110;
   const circumference = 2 * Math.PI * r;
@@ -70,7 +43,7 @@ function RingProgress({ spent, total }) {
           style={{ transition: "stroke-dashoffset 0.6s ease" }}
         />
       )}
-      <text x={cx} y={cy - 10} textAnchor="middle" fill="white" fontSize="28" fontWeight="700" fontFamily="system-ui">${spent.toFixed(0)}</text>
+      <text x={cx} y={cy - 10} textAnchor="middle" fill="white" fontSize="28" fontWeight="700" fontFamily="system-ui">${left.toFixed(0)}</text>
       <text x={cx} y={cy + 23} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="18" fontFamily="system-ui">of ${total.toFixed(0)}</text>
     </svg>
   );
@@ -141,8 +114,6 @@ function TransactionForm({ defaultValues = {}, onSubmit, submitLabel }) {
 
 export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransactionOpen }) {
   const {
-    currentMonth,
-    setCurrentMonth,
     currentBudgetID,
     selectBudget,
     currentTransactions,
@@ -164,8 +135,8 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
     [currentCategories]
   );
 
-  const totalSpent = useMemo(() =>
-    (currentTransactions ?? []).reduce((s, p) => s + p.amount, 0),
+  const totalLeftOver = useMemo(() =>
+    totalBudget - (currentTransactions ?? []).reduce((s, p) => s + p.amount, 0),
     [currentTransactions]
   );
 
@@ -215,6 +186,7 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
 
   function handleDelete(id) {
     setCurrentTransactions((prev) => prev.filter((t) => t.id !== id));
+    if (typeof id !== "number") return;
     fetch(`/api/deleteTransaction/${id}`, { method: "DELETE", headers: authHeaders() })
       .catch(console.error);
   }
@@ -237,26 +209,13 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
           borderRadius: "0 0 28px 28px",
         }}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-5">
           <h1 className="text-lg font-bold text-white tracking-tight">Finance Tracker</h1>
-          <select
-            value={currentMonth}
-            onChange={(e) => setCurrentMonth(e.target.value)}
-            className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
-            style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
-          >
-            {MONTH_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value} style={{ background: "#0c1a2e" }}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {Object.keys(allBudgets).length > 0 && (
-          <div className="flex justify-end mb-5">
+          {Object.keys(allBudgets).length > 0 && (
             <select
               value={currentBudgetID ?? ""}
               onChange={(e) => selectBudget(e.target.value)}
-              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer"
+              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer max-w-[160px] truncate"
               style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
             >
               {Object.entries(allBudgets).map(([id, b]) => (
@@ -265,11 +224,11 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
                 </option>
               ))}
             </select>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="flex justify-center">
-          <RingProgress spent={totalSpent} total={totalBudget} />
+          <RingProgress left={totalLeftOver} total={totalBudget} />
         </div>
       </div>
 

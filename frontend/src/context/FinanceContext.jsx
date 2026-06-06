@@ -2,11 +2,6 @@ import { createContext, useState, useEffect } from "react";
 
 export const budgetContext = createContext(null);
 
-function getCurrentMonth() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
 function authHeaders() {
   const t = localStorage.getItem("jmz_finance_access_token");
   return t ? { Authorization: `Bearer ${t}` } : {};
@@ -28,9 +23,6 @@ function saveCache(payload) {
 }
 
 export function BudgetProvider({ children }) {
-  const [currentMonth, setCurrentMonthState] = useState(
-    () => localStorage.getItem("finance_month") ?? getCurrentMonth()
-  );
   const [currentBudgetID, setCurrentBudgetID]         = useState(null);
   const [currentTransactions, setCurrentTransactions] = useState([]);
   const [currentCategories, setCurrentCategories]     = useState([]);
@@ -40,13 +32,10 @@ export function BudgetProvider({ children }) {
   const [isLoading, setIsLoading]       = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // On first mount, hydrate from cache immediately so there is no blank screen
+  // Hydrate from cache on first mount so there's no blank screen
   useEffect(() => {
     const cache = loadCache();
     if (!cache) return;
-
-    const savedMonth = localStorage.getItem("finance_month") ?? getCurrentMonth();
-    if (cache.month !== savedMonth) return;
 
     const savedID = Number(localStorage.getItem("finance_budget_id")) || null;
     const resolvedID = savedID && cache.allBudgets[savedID] ? savedID : Number(Object.keys(cache.allBudgets)[0]);
@@ -60,12 +49,12 @@ export function BudgetProvider({ children }) {
     setIsLoading(false);
   }, []);
 
-  // Fetch fresh data from backend whenever month changes
+  // Fetch fresh data from backend on mount
   useEffect(() => {
     const hasCache = !!loadCache();
     if (hasCache) setIsRefreshing(true);
 
-    fetch(`/api/get_finance_data?month=${currentMonth}`, { headers: authHeaders() })
+    fetch("/api/get_finance_data", { headers: authHeaders() })
       .then((r) => r.json())
       .then((data) => {
         if (!data) return;
@@ -84,16 +73,11 @@ export function BudgetProvider({ children }) {
         setCurrentCategories(categories[resolvedID] ?? []);
         setCurrentTransactions(transactions[resolvedID] ?? []);
 
-        saveCache({ month: currentMonth, allBudgets: budgets, allCategories: categories, allTransactions: transactions });
+        saveCache({ allBudgets: budgets, allCategories: categories, allTransactions: transactions });
       })
       .catch(console.error)
       .finally(() => { setIsLoading(false); setIsRefreshing(false); });
-  }, [currentMonth]);
-
-  function setCurrentMonth(month) {
-    localStorage.setItem("finance_month", month);
-    setCurrentMonthState(month);
-  }
+  }, []);
 
   function selectBudget(budgetID) {
     const id = Number(budgetID);
@@ -108,12 +92,12 @@ export function BudgetProvider({ children }) {
     const updatedCategories = { ...allCategories, [budgetID]: newCategories };
     setAllBudgets(updatedBudgets);
     setAllCategories(updatedCategories);
-    saveCache({ month: currentMonth, allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions });
+    saveCache({ allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions });
   }
 
   function addBudgetToCache({ id, description, total_budget, categories }) {
-    const updatedBudgets    = { ...allBudgets,    [id]: { budget_amount: total_budget, description } };
-    const updatedCategories = { ...allCategories, [id]: categories };
+    const updatedBudgets      = { ...allBudgets,      [id]: { budget_amount: total_budget, description } };
+    const updatedCategories   = { ...allCategories,   [id]: categories };
     const updatedTransactions = { ...allTransactions, [id]: [] };
     setAllBudgets(updatedBudgets);
     setAllCategories(updatedCategories);
@@ -122,12 +106,11 @@ export function BudgetProvider({ children }) {
     setCurrentCategories(categories);
     setCurrentTransactions([]);
     localStorage.setItem("finance_budget_id", id);
-    saveCache({ month: currentMonth, allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions: updatedTransactions });
+    saveCache({ allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions: updatedTransactions });
   }
 
   return (
     <budgetContext.Provider value={{
-      currentMonth, setCurrentMonth,
       currentBudgetID, selectBudget,
       currentTransactions, setCurrentTransactions,
       currentCategories, setCurrentCategories,

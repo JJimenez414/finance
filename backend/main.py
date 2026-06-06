@@ -10,15 +10,15 @@ from db import (
 	db_check_existing_user,
 	db_create_user,
 	db_add_transaction,
+	db_get_transactions,
 	db_delete_transaction,
 	db_update_transaction,
 	db_create_budget,
-	db_update_budget,
+	db_save_budget,
 	db_get_budget,
-	db_get_monthly_budget,
+	db_get_all_budgets,
 	db_get_budget_categories,
-	db_get_month_data,
-	db_get_finance_data
+	db_get_finance_data,
 )
 import uvicorn
 from logger import get_logger
@@ -117,8 +117,7 @@ async def add_transaction(request: Request, current_username: str = Depends(get_
 		data.get("description", ""),
 		data.get("budget_id"),
 	)
-	logger.info("POST /addTransaction — user=%s user_id=%s category=%s amount=%s date=%s description=%s budget_id=%s new_id=%s",
-		current_username, user["id"], data.get("category"), data.get("amount"), data.get("date"), data.get("description"), data.get("budget_id"), new_id)
+	logger.info("POST /addTransaction — user=%s category=%s amount=%s", current_username, data.get("category"), data.get("amount"))
 	return {"message": "Transaction added successfully", "id": new_id}
 
 @protected_router.delete("/deleteTransaction/{transaction_id}")
@@ -146,8 +145,7 @@ async def update_transaction(request: Request, current_username: str = Depends(g
 		data.get("category"),
 		data.get("description"),
 		data.get("date"),
-		user["id"],
-		data.get("budget_id")
+		user["id"]
 	)
 	logger.info("PUT /updateTransaction — transaction_id=%s user=%s user_id=%s category=%s amount=%s date=%s description=%s budget_id=%s",
 		data.get("id"), current_username, user["id"], data.get("category"), data.get("amount"), data.get("date"), data.get("description"), data.get("budget_id"))
@@ -161,20 +159,16 @@ async def create_budget(request: Request, current_username: str = Depends(get_cu
 		logger.warning("POST /createBudget — user not found: %s", current_username)
 		raise HTTPException(status_code=404, detail="User not found")
 
-	month_str = data.get("month")
 	new_id = db_create_budget(
 		user["id"],
 		data.get("total_budget"),
-		f"{month_str}-01" if month_str else None,
-		f"{month_str}-01 00:00:00" if month_str else None,
 		data.get("description", "New Budget"),
 		data.get("categories", []),
 	)
-	logger.info("POST /createBudget — user=%s user_id=%s month=%s total=%s description=%s categories=%d new_id=%s",
-		current_username, user["id"], month_str, data.get("total_budget"), data.get("description"), len(data.get("categories", [])), new_id)
+	logger.info("POST /createBudget — user=%s total=%s id=%s", current_username, data.get("total_budget"), new_id)
 	return {"message": "Budget created successfully", "id": new_id}
 
-@protected_router.post("/updateBudget")
+@protected_router.put("/updateBudget")
 async def save_budget(request: Request, current_username: str = Depends(get_current_user)):
 	data = await request.json()
 	user = get_user_by_username(current_username)
@@ -187,7 +181,7 @@ async def save_budget(request: Request, current_username: str = Depends(get_curr
 		logger.warning("POST /updateBudget — missing budget_id for user=%s", current_username)
 		raise HTTPException(status_code=400, detail="budget_id is required")
 
-	ok = db_update_budget(budget_id, user["id"], data.get("month"), data.get("categories", []), data.get("total_budget", 0))
+	ok = db_save_budget(budget_id, user["id"], data.get("total_budget"), data.get("categories", []))
 	if not ok:
 		logger.warning("POST /updateBudget — budget_id=%s not found for user=%s", budget_id, current_username)
 		raise HTTPException(status_code=403, detail="Budget not found")
@@ -197,26 +191,26 @@ async def save_budget(request: Request, current_username: str = Depends(get_curr
 	return {"message": "Budget saved successfully"}
 
 @protected_router.get("/getBudget")
-def get_budget(month: str, current_username: str = Depends(get_current_user)):
-	logger.info("GET /getBudget — user=%s month=%s", current_username, month)
+def get_budget(current_username: str = Depends(get_current_user)):
+	logger.info("GET /getBudget — user=%s", current_username)
 	user = get_user_by_username(current_username)
 	if user is None:
 		logger.warning("GET /getBudget — user not found: %s", current_username)
 		raise HTTPException(status_code=404, detail="User not found")
 
-	result = db_get_budget(user["id"], month)
+	result = db_get_budget(user["id"])
 	return JSONResponse(content={"budget": result})
 
-@protected_router.get("/getMonthlyBudget")
-def get_monthly_budget(month: str, current_username: str = Depends(get_current_user)):
-	logger.info("GET /getMonthlyBudget — user=%s month=%s", current_username, month)
+@protected_router.get("/getAllBudgets")
+def get_all_budgets(current_username: str = Depends(get_current_user)):
+	logger.info("GET /getAllBudgets — user=%s", current_username)
 	user = get_user_by_username(current_username)
 	if user is None:
-		logger.warning("GET /getMonthlyBudget — user not found: %s", current_username)
+		logger.warning("GET /getAllBudgets — user not found: %s", current_username)
 		raise HTTPException(status_code=404, detail="User not found")
 
-	budgets = db_get_monthly_budget(user["id"], month)
-	logger.info("GET /getMonthlyBudget — returned %d budgets for %s", len(budgets), current_username)
+	budgets = db_get_all_budgets(user["id"])
+	logger.info("GET /getAllBudgets — returned %d budgets for %s", len(budgets), current_username)
 	return JSONResponse(content={"budgets": budgets})
 
 @protected_router.get("/getBudgetCategories")
@@ -231,16 +225,16 @@ def get_budget_categories(budget_id: int, current_username: str = Depends(get_cu
 	logger.info("GET /getBudgetCategories — returned %d categories", len(categories))
 	return JSONResponse(content={"categories": categories})
 
-@protected_router.get("/month_data")
-def get_month_data(month: str, budget_id: Optional[int] = Query(default=None), current_username: str = Depends(get_current_user)):
-	logger.info("GET /month — user=%s month=%s budget_id=%s", current_username, month, budget_id)
+@protected_router.get("/getTransactions")
+def get_transactions(budget_id: Optional[int] = Query(default=None), current_username: str = Depends(get_current_user)):
+	logger.info("GET /getTransactions — user=%s budget_id=%s", current_username, budget_id)
 	user = get_user_by_username(current_username)
 	if user is None:
-		logger.warning("GET /month — user not found: %s", current_username)
+		logger.warning("GET /getTransactions — user not found: %s", current_username)
 		raise HTTPException(status_code=404, detail="User not found")
 
-	rows = db_get_month_data(user["id"], month, budget_id)
-	logger.info("GET /month — returned %d transactions", len(rows))
+	rows = db_get_transactions(user["id"], budget_id)
+	logger.info("GET /getTransactions — returned %d transactions", len(rows))
 	formatted = [
 		{"id": str(r[0]), "description": r[1], "date": str(r[2]), "category": r[3], "amount": float(r[4])}
 		for r in rows
@@ -248,14 +242,17 @@ def get_month_data(month: str, budget_id: Optional[int] = Query(default=None), c
 	return JSONResponse(content={"transactions": formatted})
 
 @protected_router.get("/get_finance_data")
-def get_finance_data(month: str, current_username: str = Depends(get_current_user)):
+def get_finance_data(current_username: str = Depends(get_current_user)):
+	logger.info("GET /get_finance_data — user=%s", current_username)
 	user = get_user_by_username(current_username)
+	if user is None:
+		logger.warning("GET /get_finance_data — user not found: %s", current_username)
+		raise HTTPException(status_code=404, detail="User not found")
 
-	data = db_get_finance_data(user["id"], month)
-
-	logger.info("GET /get_finance_data — user=%s user_id=%s month=%s", current_username, user["id"], month)
-
+	data = db_get_finance_data(user["id"])
+	logger.info("GET /get_finance_data — done")
 	return data
+
 
 app.include_router(public_router)
 app.include_router(protected_router)

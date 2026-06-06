@@ -1,13 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
-
-const CATEGORY_COLORS = {
-  Living:         "#14b8a6",
-  Food:           "#f59e0b",
-  Transportation: "#60a5fa",
-  Finance:        "#a78bfa",
-  Miscellaneous:  "#f472b6",
-  Give:           "#a3e635",
-};
+import { CATEGORY_COLORS } from "../constants";
 
 export default function TransactionList({ transactions, onEdit, onDelete }) {
   if (transactions.length === 0) {

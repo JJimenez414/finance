@@ -1,13 +1,9 @@
 import { useState } from "react";
 import { X, AlertTriangle } from "lucide-react";
+import { CATEGORIES } from "../constants";
+import { authHeaders } from "../utils/auth";
 
-const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
 const empty = () => CATEGORIES.reduce((a, c) => ({ ...a, [c]: "" }), {});
-
-function authHeaders() {
-  const t = localStorage.getItem("jmz_finance_access_token");
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}
 
 export default function CreateBudgetModal({ open, onClose, currentMonth, onCreated }) {
   const [description, setDescription] = useState("");
