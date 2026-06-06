@@ -187,7 +187,7 @@ def db_create_budget(user_id, total_budget, description, categories) -> int:
 	conn.close()
 	return new_budget_id
 
-def db_save_budget(budget_id, user_id, categories):
+def db_save_budget(budget_id, user_id, total_budget, categories):
 	conn = get_db_connection()
 	cur = conn.cursor()
 	cur.execute(
@@ -198,6 +198,10 @@ def db_save_budget(budget_id, user_id, categories):
 		cur.close()
 		conn.close()
 		return False
+	cur.execute(
+		"UPDATE user_budget SET total_budget = %s WHERE id = %s AND user_id = %s;",
+		(total_budget, budget_id, user_id)
+	)
 	cur.execute(
 		"UPDATE user_budget SET total_budget = %s WHERE id = %s AND user_id = %s;",
 		(total_budget, budget_id, user_id)

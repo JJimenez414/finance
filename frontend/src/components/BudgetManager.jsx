@@ -4,17 +4,8 @@ import LoadingScreen from "./LoadingScreen";
 import CategoryCard from "./CategoryCard";
 import CreateBudgetModal from "./CreateBudgetModal";
 import { useBudgetContext } from "../context/useBudgetContext";
-
-const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
-
-const CATEGORY_COLORS = {
-  Living:         "#14b8a6",
-  Food:           "#f59e0b",
-  Transportation: "#60a5fa",
-  Finance:        "#a78bfa",
-  Miscellaneous:  "#f472b6",
-  Give:           "#a3e635",
-};
+import { CATEGORIES } from "../constants";
+import { authHeaders } from "../utils/auth";
 
 
 function AllocationRing({ allocated, total }) {

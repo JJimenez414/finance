@@ -4,18 +4,8 @@ import CategoryGrid from "./CategoryGrid";
 import TransactionList from "./TransactionList";
 import LoadingScreen from "./LoadingScreen";
 import { useBudgetContext } from "../context/useBudgetContext";
-
-const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
-
-const CATEGORY_COLORS = {
-  Living:         "#14b8a6",
-  Food:           "#f59e0b",
-  Transportation: "#60a5fa",
-  Finance:        "#a78bfa",
-  Miscellaneous:  "#f472b6",
-  Give:           "#a3e635",
-};
-
+import { CATEGORIES, CATEGORY_COLORS } from "../constants";
+import { authHeaders } from "../utils/auth";
 
 function getTodayDate() {
   const now = new Date();
