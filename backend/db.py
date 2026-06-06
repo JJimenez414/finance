@@ -187,7 +187,7 @@ def db_create_budget(user_id, total_budget, description, categories) -> int:
 	conn.close()
 	return new_budget_id
 
-def db_save_budget(budget_id, user_id, categories):
+def db_save_budget(budget_id, user_id, total_budget, categories):
 	conn = get_db_connection()
 	cur = conn.cursor()
 	cur.execute(
@@ -198,6 +198,10 @@ def db_save_budget(budget_id, user_id, categories):
 		cur.close()
 		conn.close()
 		return False
+	cur.execute(
+		"UPDATE user_budget SET total_budget = %s WHERE id = %s AND user_id = %s;",
+		(total_budget, budget_id, user_id)
+	)
 	cur.execute(
 		"DELETE FROM budgets WHERE budget_id = %s AND user_id = %s;",
 		(budget_id, user_id)
@@ -229,14 +233,20 @@ def db_get_budget(user_id):
 		conn.close()
 		return None
 	parsed_budgets = [(row[0], float(row[1]), row[2]) for row in budget_rows]
+	budget_ids = [row[0] for row in budget_rows]
 	cur.execute(
-		"SELECT category, budget_amount FROM budgets WHERE user_id = %s;",
-		(user_id,)
+		"SELECT budget_id, category, budget_amount FROM budgets WHERE user_id = %s AND budget_id = ANY(%s);",
+		(user_id, budget_ids)
 	)
-	categories = [{"category": str(row[0]), "amount": float(row[1])} for row in cur.fetchall()]
+	categories_by_budget = {}
+	for row in cur.fetchall():
+		bid = row[0]
+		if bid not in categories_by_budget:
+			categories_by_budget[bid] = []
+		categories_by_budget[bid].append({"category": str(row[1]), "amount": float(row[2])})
 	cur.close()
 	conn.close()
-	return {"total_budgets": parsed_budgets, "categories": categories}
+	return {"total_budgets": parsed_budgets, "categories_by_budget": categories_by_budget}
 
 def db_get_all_budgets(user_id) -> list:
 	conn = get_db_connection()

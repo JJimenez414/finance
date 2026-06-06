@@ -92,12 +92,12 @@ export function BudgetProvider({ children }) {
     const updatedCategories = { ...allCategories, [budgetID]: newCategories };
     setAllBudgets(updatedBudgets);
     setAllCategories(updatedCategories);
-    saveCache({ month: currentMonth, allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions });
+    saveCache({ allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions });
   }
 
   function addBudgetToCache({ id, description, total_budget, categories }) {
-    const updatedBudgets    = { ...allBudgets,    [id]: { budget_amount: total_budget, description } };
-    const updatedCategories = { ...allCategories, [id]: categories };
+    const updatedBudgets      = { ...allBudgets,      [id]: { budget_amount: total_budget, description } };
+    const updatedCategories   = { ...allCategories,   [id]: categories };
     const updatedTransactions = { ...allTransactions, [id]: [] };
     setAllBudgets(updatedBudgets);
     setAllCategories(updatedCategories);
@@ -106,7 +106,7 @@ export function BudgetProvider({ children }) {
     setCurrentCategories(categories);
     setCurrentTransactions([]);
     localStorage.setItem("finance_budget_id", id);
-    saveCache({ month: currentMonth, allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions: updatedTransactions });
+    saveCache({ allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions: updatedTransactions });
   }
 
   return (

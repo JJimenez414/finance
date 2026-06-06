@@ -14,6 +14,7 @@ from db import (
 	db_delete_transaction,
 	db_update_transaction,
 	db_create_budget,
+	db_save_budget,
 	db_get_budget,
 	db_get_all_budgets,
 	db_get_budget_categories,
@@ -144,8 +145,7 @@ async def update_transaction(request: Request, current_username: str = Depends(g
 		data.get("category"),
 		data.get("description"),
 		data.get("date"),
-		user["id"],
-		data.get("budget_id")
+		user["id"]
 	)
 	logger.info("PUT /updateTransaction — transaction_id=%s user=%s user_id=%s category=%s amount=%s date=%s description=%s budget_id=%s",
 		data.get("id"), current_username, user["id"], data.get("category"), data.get("amount"), data.get("date"), data.get("description"), data.get("budget_id"))
@@ -159,16 +159,16 @@ async def create_budget(request: Request, current_username: str = Depends(get_cu
 		logger.warning("POST /createBudget — user not found: %s", current_username)
 		raise HTTPException(status_code=404, detail="User not found")
 
-	db_create_budget(
+	new_id = db_create_budget(
 		user["id"],
 		data.get("total_budget"),
 		data.get("description", "New Budget"),
 		data.get("categories", []),
 	)
-	logger.info("POST /createBudget — user=%s total=%s", current_username, data.get("total_budget"))
-	return {"message": "Budget created successfully"}
+	logger.info("POST /createBudget — user=%s total=%s id=%s", current_username, data.get("total_budget"), new_id)
+	return {"message": "Budget created successfully", "id": new_id}
 
-@protected_router.post("/updateBudget")
+@protected_router.put("/updateBudget")
 async def save_budget(request: Request, current_username: str = Depends(get_current_user)):
 	data = await request.json()
 	user = get_user_by_username(current_username)
@@ -181,7 +181,7 @@ async def save_budget(request: Request, current_username: str = Depends(get_curr
 		logger.warning("POST /updateBudget — missing budget_id for user=%s", current_username)
 		raise HTTPException(status_code=400, detail="budget_id is required")
 
-	ok = db_save_budget(budget_id, user["id"], data.get("categories", []))
+	ok = db_save_budget(budget_id, user["id"], data.get("total_budget"), data.get("categories", []))
 	if not ok:
 		logger.warning("POST /updateBudget — budget_id=%s not found for user=%s", budget_id, current_username)
 		raise HTTPException(status_code=403, detail="Budget not found")

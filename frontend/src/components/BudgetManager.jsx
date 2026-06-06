@@ -1,21 +1,11 @@
 import { useEffect, useState } from "react";
 import { Check, AlertTriangle, Pencil, X, Plus } from "lucide-react";
 import LoadingScreen from "./LoadingScreen";
-import BudgetHero from "./BudgetHero";
 import CategoryCard from "./CategoryCard";
 import CreateBudgetModal from "./CreateBudgetModal";
 import { useBudgetContext } from "../context/useBudgetContext";
-
-const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
-
-const CATEGORY_COLORS = {
-  Living:         "#14b8a6",
-  Food:           "#f59e0b",
-  Transportation: "#60a5fa",
-  Finance:        "#a78bfa",
-  Miscellaneous:  "#f472b6",
-  Give:           "#a3e635",
-};
+import { CATEGORIES } from "../constants";
+import { authHeaders } from "../utils/auth";
 
 
 function AllocationRing({ allocated, total }) {
@@ -59,11 +49,6 @@ function AllocationRing({ allocated, total }) {
 }
 
 const empty = () => CATEGORIES.reduce((a, c) => ({ ...a, [c]: "" }), {});
-
-function authHeaders() {
-  const t = localStorage.getItem("jmz_finance_access_token");
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}
 
 export default function BudgetManager() {
   const {
@@ -135,7 +120,7 @@ export default function BudgetManager() {
       .map(([category, amount]) => ({ category, amount: Number(amount) }));
 
     fetch("/api/updateBudget", {
-      method: "POST",
+      method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ budget_id: currentBudgetID, total_budget: totalNum, categories: newCategories }),
     })

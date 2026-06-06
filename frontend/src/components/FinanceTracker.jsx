@@ -4,27 +4,12 @@ import CategoryGrid from "./CategoryGrid";
 import TransactionList from "./TransactionList";
 import LoadingScreen from "./LoadingScreen";
 import { useBudgetContext } from "../context/useBudgetContext";
-
-const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
-
-const CATEGORY_COLORS = {
-  Living:         "#14b8a6",
-  Food:           "#f59e0b",
-  Transportation: "#60a5fa",
-  Finance:        "#a78bfa",
-  Miscellaneous:  "#f472b6",
-  Give:           "#a3e635",
-};
-
+import { CATEGORIES, CATEGORY_COLORS } from "../constants";
+import { authHeaders } from "../utils/auth";
 
 function getTodayDate() {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split("T")[0];
-}
-
-function authHeaders() {
-  const t = localStorage.getItem("jmz_finance_access_token");
-  return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
 function RingProgress({ left, total }) {
@@ -201,6 +186,7 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
 
   function handleDelete(id) {
     setCurrentTransactions((prev) => prev.filter((t) => t.id !== id));
+    if (typeof id !== "number") return;
     fetch(`/api/deleteTransaction/${id}`, { method: "DELETE", headers: authHeaders() })
       .catch(console.error);
   }
