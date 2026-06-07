@@ -4,8 +4,17 @@ import LoadingScreen from "./LoadingScreen";
 import CategoryCard from "./CategoryCard";
 import CreateBudgetModal from "./CreateBudgetModal";
 import { useBudgetContext } from "../context/useBudgetContext";
-import { CATEGORIES } from "../constants";
-import { authHeaders } from "../utils/auth";
+
+const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
+
+const CATEGORY_COLORS = {
+  Living:         "#14b8a6",
+  Food:           "#f59e0b",
+  Transportation: "#60a5fa",
+  Finance:        "#a78bfa",
+  Miscellaneous:  "#f472b6",
+  Give:           "#a3e635",
+};
 
 
 function AllocationRing({ allocated, total }) {
@@ -197,31 +206,6 @@ export default function BudgetManager() {
           </div>
         </div>
       </div>
-
-      <div className="px-4 pt-6 pb-28">
-        <div className="flex items-center justify-between mb-3 px-1">
-          <p className="text-xs font-medium text-white/30 uppercase tracking-widest">Allocations</p>
-          <div className="flex items-center gap-2">
-            {!isEditing && (
-              <button
-                onClick={() => setIsCreateOpen(true)}
-                className="flex items-center gap-1.5 px-3 h-7 text-xs font-semibold text-white/60 transition-opacity hover:opacity-80"
-                style={{ background: "rgba(255,255,255,0.07)", borderRadius: "8px", border: "none", cursor: "pointer" }}
-              >
-                <Plus className="w-3 h-3" /> New
-              </button>
-            )}
-            {!isEditing && (
-              <button
-                onClick={handleEdit}
-                className="flex items-center gap-1.5 px-3 h-7 text-xs font-semibold text-white/60 transition-opacity hover:opacity-80"
-                style={{ background: "rgba(255,255,255,0.07)", borderRadius: "8px", border: "none", cursor: "pointer" }}
-              >
-                <Pencil className="w-3 h-3" /> Edit
-              </button>
-            )}
-          </div>
-        </div>
 
         <div className="grid grid-cols-2 gap-2.5">
           {CATEGORIES.map((cat) => (

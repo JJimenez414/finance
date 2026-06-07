@@ -4,8 +4,18 @@ import CategoryGrid from "./CategoryGrid";
 import TransactionList from "./TransactionList";
 import LoadingScreen from "./LoadingScreen";
 import { useBudgetContext } from "../context/useBudgetContext";
-import { CATEGORIES, CATEGORY_COLORS } from "../constants";
-import { authHeaders } from "../utils/auth";
+
+const CATEGORIES = ["Living", "Food", "Transportation", "Finance", "Miscellaneous", "Give"];
+
+const CATEGORY_COLORS = {
+  Living:         "#14b8a6",
+  Food:           "#f59e0b",
+  Transportation: "#60a5fa",
+  Finance:        "#a78bfa",
+  Miscellaneous:  "#f472b6",
+  Give:           "#a3e635",
+};
+
 
 function getTodayDate() {
   const now = new Date();
@@ -210,11 +220,14 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
         }}
       >
         <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-5">
           <h1 className="text-lg font-bold text-white tracking-tight">Finance Tracker</h1>
+          {Object.keys(allBudgets).length > 0 && (
           {Object.keys(allBudgets).length > 0 && (
             <select
               value={currentBudgetID ?? ""}
               onChange={(e) => selectBudget(e.target.value)}
+              className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer max-w-[160px] truncate"
               className="h-8 px-3 text-xs font-semibold text-white/70 border border-white/12 focus:outline-none appearance-none cursor-pointer max-w-[160px] truncate"
               style={{ background: "rgba(255,255,255,0.08)", borderRadius: "8px" }}
             >
@@ -224,6 +237,8 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
                 </option>
               ))}
             </select>
+          )}
+        </div>
           )}
         </div>
 
