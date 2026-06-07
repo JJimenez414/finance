@@ -13,6 +13,14 @@ const CATEGORY_COLORS = {
   All:            "#14b8a6",
 };
 
+const PERIODS = [
+  { label: "D",  days: 1 },
+  { label: "W",  days: 7 },
+  { label: "M",  days: 30 },
+  { label: "3M", days: 90 },
+  { label: "Y",  days: 365 },
+];
+
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -27,46 +35,96 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 export default function Trend() {
-  const { currentTransactions, currentMonth } = useBudgetContext();
+  const { allTransactions } = useBudgetContext();
   const [filterCategory, setFilterCategory] = useState("");
+  const [period, setPeriod] = useState("M");
+
+  const allTxFlat = useMemo(
+    () => Object.values(allTransactions ?? {}).flat(),
+    [allTransactions]
+  );
+
+  const periodDays = PERIODS.find((p) => p.label === period)?.days ?? 30;
+
+  const cutoffDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - periodDays + 1);
+    return d.toISOString().split("T")[0];
+  }, [periodDays]);
+
+  const todayDate = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const categories = useMemo(
-    () => [...new Set((currentTransactions ?? []).map((t) => t.category))].sort(),
-    [currentTransactions]
+    () => [...new Set(allTxFlat.map((t) => t.category))].sort(),
+    [allTxFlat]
   );
 
   const categoryColor = CATEGORY_COLORS[filterCategory] ?? CATEGORY_COLORS["All"];
 
+  const filtered = useMemo(
+    () => allTxFlat
+      .filter((t) => t.date >= cutoffDate && t.date <= todayDate)
+      .filter((t) => !filterCategory || t.category === filterCategory),
+    [allTxFlat, cutoffDate, todayDate, filterCategory]
+  );
+
   const chartData = useMemo(() => {
-    const filtered = (currentTransactions ?? [])
-      .filter((t) => !filterCategory || t.category === filterCategory);
+    if (period === "Y" || period === "3M") {
+      const byMonth = {};
+      filtered.forEach((t) => {
+        const key = t.date.slice(0, 7);
+        byMonth[key] = (byMonth[key] ?? 0) + t.amount;
+      });
+      return Object.entries(byMonth)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, total]) => ({
+          date: new Date(`${month}-02`).toLocaleString("default", { month: "short" }),
+          total,
+        }));
+    }
 
     const byDate = {};
     filtered.forEach((t) => {
       byDate[t.date] = (byDate[t.date] ?? 0) + t.amount;
     });
-
     return Object.entries(byDate)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, total]) => ({ date: date.slice(5), total }));
-  }, [currentTransactions, filterCategory]);
-
+  }, [filtered, period]);
 
   const totalSpent = useMemo(
-    () => (currentTransactions ?? [])
-      .filter((t) => !filterCategory || t.category === filterCategory)
-      .reduce((s, t) => s + t.amount, 0),
-    [currentTransactions, filterCategory]
+    () => filtered.reduce((s, t) => s + t.amount, 0),
+    [filtered]
   );
 
-  const monthLabel = currentMonth
-    ? new Date(`${currentMonth}-02`).toLocaleString("default", { month: "long", year: "numeric" })
-    : "";
+  const groupLabel = period === "Y" || period === "3M" ? "month" : "day";
 
   return (
     <div className="flex flex-col h-full px-4 pt-6 pb-24 overflow-y-auto">
-      <h1 className="text-lg font-bold text-white tracking-tight mb-1">Spending Trend</h1>
-      <p className="text-xs mb-6" style={{ color: "rgba(255,255,255,0.35)" }}>{monthLabel}</p>
+      <h1 className="text-lg font-bold text-white tracking-tight mb-4">Spending Trend</h1>
+
+      <div
+        className="flex items-center mb-4"
+        style={{ background: "rgba(255,255,255,0.05)", borderRadius: "10px", padding: "4px" }}
+      >
+        {PERIODS.map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => setPeriod(p.label)}
+            className="flex-1 text-xs font-semibold py-1.5 transition-all"
+            style={{
+              borderRadius: "7px",
+              border: "none",
+              cursor: "pointer",
+              background: period === p.label ? "#14b8a6" : "transparent",
+              color: period === p.label ? "#fff" : "rgba(255,255,255,0.4)",
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
 
       <div className="mb-3">
         <select
@@ -95,7 +153,7 @@ export default function Trend() {
 
         {chartData.length === 0 ? (
           <p className="text-sm text-center py-10" style={{ color: "rgba(255,255,255,0.2)" }}>
-            No transactions this month.
+            No transactions in this period.
           </p>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
@@ -140,7 +198,7 @@ export default function Trend() {
         >
           <TrendingUp className="w-4 h-4 text-teal-400 flex-shrink-0" />
           <p className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
-            {chartData.length} day{chartData.length !== 1 ? "s" : ""} with transactions this month
+            {chartData.length} {groupLabel}{chartData.length !== 1 ? "s" : ""} with transactions
           </p>
         </div>
       )}
