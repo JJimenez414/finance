@@ -36,10 +36,10 @@ export default function Trend() {
   const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const todayDate = useMemo(() => fmt(new Date()), []);
 
-  async function dataForRange(start_date, end_date) {
+  async function dataForRange(start_date, end_date, periodDays) {
 
     try {
-      const response = await fetch(`/api/get_transactions_for_range?start_date=${start_date}&end_date=${end_date}`, {
+      const response = await fetch(`/api/get_transactions_for_range?start_date=${start_date}&end_date=${end_date}&time_frame=${periodDays}`, {
         method: "GET",
         headers: { "Content-Type": "application/json", ...authHeaders() },
       });
@@ -55,7 +55,7 @@ export default function Trend() {
 
   useEffect(()=>{
 
-  dataForRange(cutoffDate, todayDate)
+  dataForRange(cutoffDate, todayDate, periodDays)
 
   }, [period])
 

@@ -3,6 +3,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 from logger import get_logger
+from datetime import date, timedelta
 
 load_dotenv("../.env")
 
@@ -276,11 +277,13 @@ def db_get_budget_categories(budget_id, user_id) -> list:
 	conn.close()
 	return [{"category": row[0], "amount": float(row[1])} for row in rows]
 
-def db_get_transactions_for_range(user_id, start_date, end_date):
-	logger.info("db_get_budget_categories — Getting transactins between this %s - %s for user: %s", start_date, end_date, user_id)
+def db_get_transactions_for_range(user_id, start_date, end_date, time_frame):
+	logger.info("db_get_budget_categories — Getting transactions between this %s - %s for user: %s.", start_date, end_date, user_id)
 
 	conn = get_db_connection()
 	cur = conn.cursor()
+
+	response = {}
 
 	cur.execute(
 			"SELECT amount, category, description, transaction_date FROM transactions WHERE user_id = %s AND transaction_date between %s and %s;", (user_id, start_date, end_date)
@@ -288,9 +291,29 @@ def db_get_transactions_for_range(user_id, start_date, end_date):
 
 	rows = cur.fetchall()
 
-	formated = [
+	response["all_tran"] = [
 		{"amount": float(r[0]), "category": str(r[1]), "description": str(r[2]), "date": str(r[3])}
 		for r in rows
 	]
+
+	one_day_before_start = date.fromisoformat(start_date) - timedelta(days=1)
+	three_days_before_start = one_day_before_start - timedelta(days=time_frame-1)
+
+	for tran_type in ["Miscellaneous", "Give", "Living", "Food", "Transportation", "Finance"]:
+		logger.info("db_get_budget_categories — Getting transactions %s days before start date for %s. Time range between %s - %s for user: %s.", time_frame, tran_type, three_days_before_start, one_day_before_start, user_id)
+		cur.execute(
+			"SELECT SUM(amount) AS total FROM transactions WHERE user_id = %s AND category = %s AND transaction_date between %s and %s;", (user_id, tran_type, three_days_before_start, one_day_before_start)
+		)
+		rows = cur.fetchall()
+		key = f"trend_{tran_type}"
+		response[key] = [
+			{"total": float(r[0]) if r[0] is not None else 0.0}  
+			for r in rows
+		]
+		
+	print(response)
+
+	cur.close()
+	conn.close()
 	
-	return formated
+	return response["all_tran"]

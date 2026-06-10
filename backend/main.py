@@ -255,7 +255,7 @@ def get_finance_data(current_username: str = Depends(get_current_user)):
 	return data
 
 @protected_router.get("/get_transactions_for_range")
-def get_transactions_for_range(start_date: str, end_date:str, current_username: str = Depends(get_current_user)):
+def get_transactions_for_range(start_date: str, end_date:str, time_frame:int, current_username: str = Depends(get_current_user)):
 	logger.info("GET /get_transactions_for_range - user=%s", current_username)
 	user = get_user_by_username(current_username)
 
@@ -265,7 +265,7 @@ def get_transactions_for_range(start_date: str, end_date:str, current_username: 
 	
 	
 
-	data = db_get_transactions_for_range(user["id"], start_date, end_date)
+	data = db_get_transactions_for_range(user["id"], start_date, end_date, time_frame)
 	logger.info("GET /get_transactions_for_range — done")
 	return data
 
