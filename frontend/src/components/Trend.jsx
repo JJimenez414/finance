@@ -1,25 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { useBudgetContext } from "../context/useBudgetContext";
-
-const CATEGORY_COLORS = {
-  Living:         "#14b8a6",
-  Food:           "#f59e0b",
-  Transportation: "#60a5fa",
-  Finance:        "#a78bfa",
-  Miscellaneous:  "#f472b6",
-  Give:           "#a3e635",
-  All:            "#14b8a6",
-};
-
-const PERIODS = [
-  { label: "D",  days: 1 },
-  { label: "W",  days: 7 },
-  { label: "M",  days: 30 },
-  { label: "3M", days: 90 },
-  { label: "Y",  days: 365 },
-];
+import { CATEGORY_COLORS, PERIODS } from "../constants";
+import { authHeaders } from "../utils/auth";
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -35,24 +19,50 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 export default function Trend() {
+  const [trendTransactions, setTrendTransactions] = useState([])
   const { allTransactions } = useBudgetContext();
   const [filterCategory, setFilterCategory] = useState("");
   const [period, setPeriod] = useState("M");
 
-  const allTxFlat = useMemo(
-    () => Object.values(allTransactions ?? {}).flat(),
-    [allTransactions]
-  );
 
   const periodDays = PERIODS.find((p) => p.label === period)?.days ?? 30;
 
   const cutoffDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - periodDays + 1);
-    return d.toISOString().split("T")[0];
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, [periodDays]);
 
-  const todayDate = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const todayDate = useMemo(() => fmt(new Date()), []);
+
+  async function dataForRange(start_date, end_date) {
+
+    try {
+      const response = await fetch(`/api/get_transactions_for_range?start_date=${start_date}&end_date=${end_date}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+      });
+
+      const data = await response.json();
+
+      setTrendTransactions(data)
+    } catch (err) {
+      console.error(err);
+    }
+   
+  }
+
+  useEffect(()=>{
+
+  dataForRange(cutoffDate, todayDate)
+
+  }, [period])
+
+  const allTxFlat = useMemo(
+    () => Object.values(trendTransactions ?? {}).flat(),
+    [trendTransactions]
+  );
 
   const categories = useMemo(
     () => [...new Set(allTxFlat.map((t) => t.category))].sort(),
@@ -63,25 +73,11 @@ export default function Trend() {
 
   const filtered = useMemo(
     () => allTxFlat
-      .filter((t) => t.date >= cutoffDate && t.date <= todayDate)
       .filter((t) => !filterCategory || t.category === filterCategory),
     [allTxFlat, cutoffDate, todayDate, filterCategory]
   );
 
   const chartData = useMemo(() => {
-    if (period === "Y" || period === "3M") {
-      const byMonth = {};
-      filtered.forEach((t) => {
-        const key = t.date.slice(0, 7);
-        byMonth[key] = (byMonth[key] ?? 0) + t.amount;
-      });
-      return Object.entries(byMonth)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([month, total]) => ({
-          date: new Date(`${month}-02`).toLocaleString("default", { month: "short" }),
-          total,
-        }));
-    }
 
     const byDate = {};
     filtered.forEach((t) => {

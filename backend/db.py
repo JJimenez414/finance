@@ -275,3 +275,22 @@ def db_get_budget_categories(budget_id, user_id) -> list:
 	cur.close()
 	conn.close()
 	return [{"category": row[0], "amount": float(row[1])} for row in rows]
+
+def db_get_transactions_for_range(user_id, start_date, end_date):
+	logger.info("db_get_budget_categories — Getting transactins between this %s - %s for user: %s", start_date, end_date, user_id)
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	cur.execute(
+			"SELECT amount, category, description, transaction_date FROM transactions WHERE user_id = %s AND transaction_date between %s and %s;", (user_id, start_date, end_date)
+	)	
+
+	rows = cur.fetchall()
+
+	formated = [
+		{"amount": float(r[0]), "category": str(r[1]), "description": str(r[2]), "date": str(r[3])}
+		for r in rows
+	]
+	
+	return formated
