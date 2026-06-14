@@ -21,7 +21,8 @@ function CustomTooltip({ active, payload, label }) {
 export default function Trend() {
   const [trendTransactions, setTrendTransactions] = useState([])
   const [curTrendTransaction, setCurTrendTransaction] = useState([])
-  const [pastTrendTransaction, setPastTrendTransaction] = useState([])  
+  const [pastTrendTransaction, setPastTrendTransaction] = useState([])
+  const [isLoadingTrend, setIsLoadingTrend] = useState(false)  
   const { allTransactions } = useBudgetContext();
   const [filterCategory, setFilterCategory] = useState("");
   const [period, setPeriod] = useState("M");
@@ -39,7 +40,7 @@ export default function Trend() {
   const todayDate = useMemo(() => fmt(new Date()), []);
 
   async function dataForRange(start_date, end_date, periodDays) {
-
+    setIsLoadingTrend(true);
     try {
       const response = await fetch(`/api/get_transactions_for_range?start_date=${start_date}&end_date=${end_date}&time_frame=${periodDays}`, {
         method: "GET",
@@ -53,8 +54,9 @@ export default function Trend() {
       setPastTrendTransaction(data["trend_tran"])
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsLoadingTrend(false);
     }
-   
   }
 
   useEffect(()=>{
@@ -101,6 +103,11 @@ export default function Trend() {
 
   return (
     <div className="flex flex-col h-full px-4 pt-6 pb-24 overflow-y-auto">
+      {isLoadingTrend && (
+        <div className="fixed top-0 left-0 right-0 z-[400] h-0.5" style={{ background: "rgba(255,255,255,0.05)" }}>
+          <div className="h-full animate-pulse" style={{ background: "linear-gradient(90deg, #14b8a6, #67e8f9)", width: "60%" }} />
+        </div>
+      )}
       <h1 className="text-lg font-bold text-white tracking-tight mb-4">Spending Trend</h1>
 
       <div
@@ -208,7 +215,7 @@ export default function Trend() {
       </p>
 
       <div className="flex flex-col gap-2">
-        {Object.keys(CATEGORY_COLORS).map((cat) => {
+        {Object.keys(CATEGORY_COLORS).filter((cat) => cat !== "All").map((cat) => {
           const cur  = curTrendTransaction?.[cat]?.total  ?? 0;
           const past = pastTrendTransaction?.[cat]?.total ?? 0;
           const diff = cur - past;
