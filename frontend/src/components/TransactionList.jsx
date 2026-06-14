@@ -12,12 +12,10 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
     );
   }
 
-  const sorted = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-
   return (
     <div className="px-4 pt-2 flex-1 overflow-y-auto">
       <ul className="space-y-2 pb-24">
-        {sorted.map((t, i) => (
+        {transactions.map((t, i) => (
           <li
             key={t.id ?? i}
             className="flex items-center gap-3 px-4 py-3"
