@@ -272,6 +272,31 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
         onClose={() => setActiveCategory(null)}
         title={activeCategory ?? ""}
       >
+        {(() => {
+          const cat = byCategory.find((c) => c.name === activeCategory);
+          return cat && (
+            <div className="flex gap-3 mb-4">
+              <div className="flex-1 px-4 py-3" style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px" }}>
+                <p className="text-[11px] mb-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Spent</p>
+                <p className="text-base font-bold text-white">${cat.spent.toFixed(2)}</p>
+              </div>
+              {cat.budget > 0 && (
+                <>
+                  <div className="flex-1 px-4 py-3" style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px" }}>
+                    <p className="text-[11px] mb-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Budget</p>
+                    <p className="text-base font-bold text-white">${cat.budget.toFixed(2)}</p>
+                  </div>
+                  <div className="flex-1 px-4 py-3" style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px" }}>
+                    <p className="text-[11px] mb-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Left</p>
+                    <p className="text-base font-bold" style={{ color: cat.budget - cat.spent < 0 ? "#f87171" : "white" }}>
+                      ${(cat.budget - cat.spent).toFixed(2)}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
         {activeTxns.length === 0 ? (
           <p className="text-sm text-white/30 text-center py-8">No transactions yet.</p>
         ) : (
