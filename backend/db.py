@@ -3,6 +3,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 from logger import get_logger
+from datetime import date, timedelta
 
 load_dotenv("../.env")
 
@@ -203,6 +204,10 @@ def db_save_budget(budget_id, user_id, total_budget, categories):
 		(total_budget, budget_id, user_id)
 	)
 	cur.execute(
+		"UPDATE user_budget SET total_budget = %s WHERE id = %s AND user_id = %s;",
+		(total_budget, budget_id, user_id)
+	)
+	cur.execute(
 		"DELETE FROM budgets WHERE budget_id = %s AND user_id = %s;",
 		(budget_id, user_id)
 	)
@@ -271,3 +276,52 @@ def db_get_budget_categories(budget_id, user_id) -> list:
 	cur.close()
 	conn.close()
 	return [{"category": row[0], "amount": float(row[1])} for row in rows]
+
+def db_get_transactions_for_range(user_id, start_date, end_date, time_frame):
+	logger.info("db_get_budget_categories — Getting transactions between %s - %s for user: %s.", start_date, end_date, user_id)
+
+	conn = get_db_connection()
+	cur = conn.cursor()
+
+	response = {}
+
+	cur.execute(
+			"SELECT amount, category, description, transaction_date FROM transactions WHERE user_id = %s AND transaction_date between %s and %s;", (user_id, start_date, end_date)
+	)	
+
+	rows = cur.fetchall()
+
+	response["all_tran"] = [
+		{"amount": float(r[0]), "category": str(r[1]), "description": str(r[2]), "date": str(r[3])}
+		for r in rows
+	]
+
+	one_day_before_start = date.fromisoformat(start_date) - timedelta(days=1)
+	time_frame_before_start = one_day_before_start - timedelta(days=time_frame-1)
+
+	response["cur_tran"] = {}
+
+	for tran_type in ["Miscellaneous", "Give", "Living", "Food", "Transportation", "Finance"]:
+		logger.info("db_get_budget_categories — Getting total amount spend %s days before start date for %s. Time range between %s - %s for user: %s.", time_frame, tran_type, start_date, end_date, user_id)
+		cur.execute(
+			"SELECT SUM(amount) AS total FROM transactions WHERE user_id = %s AND category = %s AND transaction_date between %s and %s;", (user_id, tran_type, start_date, end_date)
+		)
+		rows = cur.fetchall()
+		key = f"{tran_type}"
+		response["cur_tran"][key] = {"total": float(rows[0][0]) if rows[0][0] is not None else 0.0}
+
+	response["trend_tran"] = {}
+
+	for tran_type in ["Miscellaneous", "Give", "Living", "Food", "Transportation", "Finance"]:
+		logger.info("db_get_budget_categories — Getting total amount spend %s days before start date for %s. Time range between %s - %s for user: %s.", time_frame, tran_type, time_frame_before_start, one_day_before_start, user_id)
+		cur.execute(
+			"SELECT SUM(amount) AS total FROM transactions WHERE user_id = %s AND category = %s AND transaction_date between %s and %s;", (user_id, tran_type, time_frame_before_start, one_day_before_start)
+		)
+		rows = cur.fetchall()
+		key = f"{tran_type}"
+		response["trend_tran"][key] = {"total": float(rows[0][0]) if rows[0][0] is not None else 0.0}
+
+	cur.close()
+	conn.close()
+	
+	return response
