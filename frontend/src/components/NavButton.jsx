@@ -37,14 +37,6 @@ export default function NavButton({onNavigate, setIsAddTransactionOpen, onLogout
             <button
               type="button"
               className="fab-item"
-              onClick={() => { onNavigate("trend"); setIsFabOpen(false); }}
-            >
-              <span className="fab-item-label">Trend</span>
-              <span className="fab-item-icon">↗</span>
-            </button>
-            <button
-              type="button"
-              className="fab-item"
               onClick={() => { onLogout(); setIsFabOpen(false); }}
             >
               <span className="fab-item-label">Log Out</span>
