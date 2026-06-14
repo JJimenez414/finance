@@ -20,6 +20,8 @@ function CustomTooltip({ active, payload, label }) {
 
 export default function Trend() {
   const [trendTransactions, setTrendTransactions] = useState([])
+  const [curTrendTransaction, setCurTrendTransaction] = useState([])
+  const [pastTrendTransaction, setPastTrendTransaction] = useState([])  
   const { allTransactions } = useBudgetContext();
   const [filterCategory, setFilterCategory] = useState("");
   const [period, setPeriod] = useState("M");
@@ -46,7 +48,9 @@ export default function Trend() {
 
       const data = await response.json();
 
-      setTrendTransactions(data)
+      setTrendTransactions(data["all_tran"])
+      setCurTrendTransaction(data["cur_tran"])
+      setPastTrendTransaction(data["trend_tran"])
     } catch (err) {
       console.error(err);
     }
@@ -189,7 +193,7 @@ export default function Trend() {
 
       {chartData.length > 0 && (
         <div
-          className="flex items-center gap-2 px-4 py-3"
+          className="flex items-center gap-2 px-4 py-3 mb-4"
           style={{ background: "#13131e", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "12px" }}
         >
           <TrendingUp className="w-4 h-4 text-teal-400 flex-shrink-0" />
@@ -198,6 +202,48 @@ export default function Trend() {
           </p>
         </div>
       )}
+
+      <p className="text-xs font-semibold mb-3" style={{ color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+        vs previous period
+      </p>
+
+      <div className="flex flex-col gap-2">
+        {Object.keys(CATEGORY_COLORS).map((cat) => {
+          const cur  = curTrendTransaction?.[cat]?.total  ?? 0;
+          const past = pastTrendTransaction?.[cat]?.total ?? 0;
+          const diff = cur - past;
+          const isUp = diff > 0;
+          const isNeutral = diff === 0;
+          const diffColor = isNeutral ? "rgba(255,255,255,0.3)" : isUp ? "#f87171" : "#4ade80";
+          const arrow = isNeutral ? "—" : isUp ? "↑" : "↓";
+
+          return (
+            <div
+              key={cat}
+              style={{
+                background: "#13131e",
+                border: "1px solid rgba(255,255,255,0.07)",
+                borderLeft: `3px solid ${CATEGORY_COLORS[cat]}`,
+                borderRadius: "12px",
+              }}
+            >
+              <div className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">{cat}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                    ${cur.toFixed(2)} <span style={{ color: "rgba(255,255,255,0.15)" }}>vs</span> ${past.toFixed(2)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-bold" style={{ color: diffColor }}>
+                    {arrow} ${Math.abs(diff).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

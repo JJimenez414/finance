@@ -278,7 +278,7 @@ def db_get_budget_categories(budget_id, user_id) -> list:
 	return [{"category": row[0], "amount": float(row[1])} for row in rows]
 
 def db_get_transactions_for_range(user_id, start_date, end_date, time_frame):
-	logger.info("db_get_budget_categories — Getting transactions between this %s - %s for user: %s.", start_date, end_date, user_id)
+	logger.info("db_get_budget_categories — Getting transactions between %s - %s for user: %s.", start_date, end_date, user_id)
 
 	conn = get_db_connection()
 	cur = conn.cursor()
@@ -297,23 +297,31 @@ def db_get_transactions_for_range(user_id, start_date, end_date, time_frame):
 	]
 
 	one_day_before_start = date.fromisoformat(start_date) - timedelta(days=1)
-	three_days_before_start = one_day_before_start - timedelta(days=time_frame-1)
+	time_frame_before_start = one_day_before_start - timedelta(days=time_frame-1)
+
+	response["cur_tran"] = {}
 
 	for tran_type in ["Miscellaneous", "Give", "Living", "Food", "Transportation", "Finance"]:
-		logger.info("db_get_budget_categories — Getting transactions %s days before start date for %s. Time range between %s - %s for user: %s.", time_frame, tran_type, three_days_before_start, one_day_before_start, user_id)
+		logger.info("db_get_budget_categories — Getting total amount spend %s days before start date for %s. Time range between %s - %s for user: %s.", time_frame, tran_type, start_date, end_date, user_id)
 		cur.execute(
-			"SELECT SUM(amount) AS total FROM transactions WHERE user_id = %s AND category = %s AND transaction_date between %s and %s;", (user_id, tran_type, three_days_before_start, one_day_before_start)
+			"SELECT SUM(amount) AS total FROM transactions WHERE user_id = %s AND category = %s AND transaction_date between %s and %s;", (user_id, tran_type, start_date, end_date)
 		)
 		rows = cur.fetchall()
-		key = f"trend_{tran_type}"
-		response[key] = [
-			{"total": float(r[0]) if r[0] is not None else 0.0}  
-			for r in rows
-		]
-		
-	print(response)
+		key = f"{tran_type}"
+		response["cur_tran"][key] = {"total": float(rows[0][0]) if rows[0][0] is not None else 0.0}
+
+	response["trend_tran"] = {}
+
+	for tran_type in ["Miscellaneous", "Give", "Living", "Food", "Transportation", "Finance"]:
+		logger.info("db_get_budget_categories — Getting total amount spend %s days before start date for %s. Time range between %s - %s for user: %s.", time_frame, tran_type, time_frame_before_start, one_day_before_start, user_id)
+		cur.execute(
+			"SELECT SUM(amount) AS total FROM transactions WHERE user_id = %s AND category = %s AND transaction_date between %s and %s;", (user_id, tran_type, time_frame_before_start, one_day_before_start)
+		)
+		rows = cur.fetchall()
+		key = f"{tran_type}"
+		response["trend_tran"][key] = {"total": float(rows[0][0]) if rows[0][0] is not None else 0.0}
 
 	cur.close()
 	conn.close()
 	
-	return response["all_tran"]
+	return response
