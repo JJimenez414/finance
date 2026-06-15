@@ -19,6 +19,7 @@ from db import (
 	db_get_all_budgets,
 	db_get_budget_categories,
 	db_get_finance_data,
+	db_get_transactions_for_range
 )
 import uvicorn
 from logger import get_logger
@@ -253,6 +254,20 @@ def get_finance_data(current_username: str = Depends(get_current_user)):
 	logger.info("GET /get_finance_data — done")
 	return data
 
+@protected_router.get("/get_transactions_for_range")
+def get_transactions_for_range(start_date: str, end_date:str, time_frame:int, current_username: str = Depends(get_current_user)):
+	logger.info("GET /get_transactions_for_range - user=%s", current_username)
+	user = get_user_by_username(current_username)
+
+	if user is None:
+		logger.warning("GET /get_transactions_for_range — user not found: %s", current_username)
+		raise HTTPException(status_code=404, detail="User not found")
+	
+	
+
+	data = db_get_transactions_for_range(user["id"], start_date, end_date, time_frame)
+	logger.info("GET /get_transactions_for_range — done")
+	return data
 
 app.include_router(public_router)
 app.include_router(protected_router)
