@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { X, AlertTriangle } from "lucide-react";
-import { CATEGORIES } from "../constants";
+import { useBudgetContext } from "../context/useBudgetContext";
 import { authHeaders } from "../utils/auth";
 
-const empty = () => CATEGORIES.reduce((a, c) => ({ ...a, [c]: "" }), {});
-
 export default function CreateBudgetModal({ open, onClose, currentMonth, onCreated }) {
+  const { userCategories } = useBudgetContext();
+  const empty = () => (userCategories ?? []).reduce((a, { name }) => ({ ...a, [name]: "" }), {});
+
   const [description, setDescription] = useState("");
   const [totalBudget, setTotalBudget]  = useState("");
-  const [cats, setCats]                = useState(empty());
+  const [cats, setCats]                = useState({});
   const [error, setError]              = useState("");
   const [saving, setSaving]            = useState(false);
 
@@ -111,9 +112,9 @@ export default function CreateBudgetModal({ open, onClose, currentMonth, onCreat
           <div>
             <label className="field-label mb-3 block">Allocations</label>
             <div className="grid grid-cols-2 gap-2">
-              {CATEGORIES.map((cat) => (
+              {(userCategories ?? []).map(({ name: cat, color }) => (
                 <div key={cat} className="space-y-1">
-                  <p className="text-xs text-white/40">{cat}</p>
+                  <p className="text-xs text-white/40" style={{ borderLeft: `3px solid ${color}`, paddingLeft: "6px" }}>{cat}</p>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style={{ color: "rgba(255,255,255,0.3)" }}>$</span>
                     <input

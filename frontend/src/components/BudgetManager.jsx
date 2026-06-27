@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Check, AlertTriangle, Pencil, X, Plus } from "lucide-react";
+import { Check, AlertTriangle, Pencil, X, Plus, Settings } from "lucide-react";
 import LoadingScreen from "./LoadingScreen";
 import CategoryCard from "./CategoryCard";
 import CreateBudgetModal from "./CreateBudgetModal";
+import ManageCategoriesModal from "./ManageCategoriesModal";
 import { useBudgetContext } from "../context/useBudgetContext";
-import { CATEGORIES } from "../constants";
 import { authHeaders } from "../utils/auth";
 
 
@@ -48,8 +48,6 @@ function AllocationRing({ allocated, total }) {
   );
 }
 
-const empty = () => CATEGORIES.reduce((a, c) => ({ ...a, [c]: "" }), {});
-
 export default function BudgetManager() {
   const {
     currentBudgetID,
@@ -60,15 +58,19 @@ export default function BudgetManager() {
     updateBudgetCache,
     addBudgetToCache,
     isLoading,
+    userCategories,
   } = useBudgetContext();
 
-  const [totalBudget, setTotalBudget]   = useState("");
-  const [cats, setCats]                 = useState(empty());
-  const [saved, setSaved]               = useState(false);
-  const [error, setError]               = useState("");
-  const [isEditing, setIsEditing]       = useState(false);
-  const [snapshot, setSnapshot]         = useState({ totalBudget: "", cats: empty() });
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const empty = () => (userCategories ?? []).reduce((a, { name }) => ({ ...a, [name]: "" }), {});
+
+  const [totalBudget, setTotalBudget]     = useState("");
+  const [cats, setCats]                   = useState({});
+  const [saved, setSaved]                 = useState(false);
+  const [error, setError]                 = useState("");
+  const [isEditing, setIsEditing]         = useState(false);
+  const [snapshot, setSnapshot]           = useState({ totalBudget: "", cats: {} });
+  const [isCreateOpen, setIsCreateOpen]   = useState(false);
+  const [isManageOpen, setIsManageOpen]   = useState(false);
 
   useEffect(() => {
     const budget = allBudgets[currentBudgetID];
@@ -77,12 +79,11 @@ export default function BudgetManager() {
   }, [currentBudgetID, allBudgets]);
 
   useEffect(() => {
-    if (!currentCategories?.length) { setCats(empty()); return; }
     const b = empty();
-    currentCategories.forEach((c) => { b[c.category] = String(c.amount ?? ""); });
+    (currentCategories ?? []).forEach((c) => { b[c.category] = String(c.amount ?? ""); });
     setCats(b);
     setIsEditing(false);
-  }, [currentCategories]);
+  }, [currentCategories, userCategories]);
 
   const allocated  = Object.values(cats).reduce((s, v) => s + (Number(v) || 0), 0);
   const totalNum   = Number(totalBudget) || 0;
@@ -204,6 +205,15 @@ export default function BudgetManager() {
           <div className="flex items-center gap-2">
             {!isEditing && (
               <button
+                onClick={() => setIsManageOpen(true)}
+                className="flex items-center gap-1.5 px-3 h-7 text-xs font-semibold text-white/60 transition-opacity hover:opacity-80"
+                style={{ background: "rgba(255,255,255,0.07)", borderRadius: "8px", border: "none", cursor: "pointer" }}
+              >
+                <Settings className="w-3 h-3" /> Manage
+              </button>
+            )}
+            {!isEditing && (
+              <button
                 onClick={() => setIsCreateOpen(true)}
                 className="flex items-center gap-1.5 px-3 h-7 text-xs font-semibold text-white/60 transition-opacity hover:opacity-80"
                 style={{ background: "rgba(255,255,255,0.07)", borderRadius: "8px", border: "none", cursor: "pointer" }}
@@ -224,11 +234,12 @@ export default function BudgetManager() {
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
-          {CATEGORIES.map((cat) => (
+          {(userCategories ?? []).map(({ name, color }) => (
             <CategoryCard
-              key={cat}
-              cat={cat}
-              value={cats[cat]}
+              key={name}
+              cat={name}
+              color={color}
+              value={cats[name]}
               totalNum={totalNum}
               isEditing={isEditing}
               onChange={handleCatChange}
@@ -280,6 +291,10 @@ export default function BudgetManager() {
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreated={addBudgetToCache}
+      />
+      <ManageCategoriesModal
+        open={isManageOpen}
+        onClose={() => setIsManageOpen(false)}
       />
     </div>
   );

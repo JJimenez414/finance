@@ -271,3 +271,88 @@ def db_get_budget_categories(budget_id, user_id) -> list:
 	cur.close()
 	conn.close()
 	return [{"category": row[0], "amount": float(row[1])} for row in rows]
+
+_DEFAULT_CATEGORIES = [
+	{"name": "Living",         "color": "#14b8a6"},
+	{"name": "Food",           "color": "#f59e0b"},
+	{"name": "Transportation", "color": "#60a5fa"},
+	{"name": "Finance",        "color": "#a78bfa"},
+	{"name": "Miscellaneous",  "color": "#f472b6"},
+	{"name": "Give",           "color": "#a3e635"},
+]
+
+def _ensure_user_categories_table(cur):
+	cur.execute("""
+		CREATE TABLE IF NOT EXISTS user_categories (
+			id SERIAL PRIMARY KEY,
+			user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+			name TEXT NOT NULL,
+			color TEXT NOT NULL,
+			UNIQUE(user_id, name)
+		);
+	""")
+
+def db_get_user_categories(user_id) -> list:
+	conn = get_db_connection()
+	cur = conn.cursor(cursor_factory=RealDictCursor)
+	_ensure_user_categories_table(cur)
+	conn.commit()
+	cur.execute("SELECT id, name, color FROM user_categories WHERE user_id = %s ORDER BY id;", (user_id,))
+	rows = cur.fetchall()
+	if not rows:
+		for cat in _DEFAULT_CATEGORIES:
+			cur.execute(
+				"INSERT INTO user_categories (user_id, name, color) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING;",
+				(user_id, cat["name"], cat["color"])
+			)
+		conn.commit()
+		cur.execute("SELECT id, name, color FROM user_categories WHERE user_id = %s ORDER BY id;", (user_id,))
+		rows = cur.fetchall()
+	cur.close()
+	conn.close()
+	return [dict(r) for r in rows]
+
+def db_create_user_category(user_id, name, color) -> int:
+	conn = get_db_connection()
+	cur = conn.cursor()
+	cur.execute(
+		"INSERT INTO user_categories (user_id, name, color) VALUES (%s, %s, %s) RETURNING id;",
+		(user_id, name, color)
+	)
+	new_id = cur.fetchone()[0]
+	conn.commit()
+	cur.close()
+	conn.close()
+	return new_id
+
+def db_update_user_category(category_id, user_id, name, color) -> bool:
+	conn = get_db_connection()
+	cur = conn.cursor()
+	cur.execute("SELECT name FROM user_categories WHERE id = %s AND user_id = %s;", (category_id, user_id))
+	row = cur.fetchone()
+	if row is None:
+		cur.close()
+		conn.close()
+		return False
+	old_name = row[0]
+	cur.execute(
+		"UPDATE user_categories SET name = %s, color = %s WHERE id = %s AND user_id = %s;",
+		(name, color, category_id, user_id)
+	)
+	if old_name != name:
+		cur.execute("UPDATE transactions SET category = %s WHERE user_id = %s AND category = %s;", (name, user_id, old_name))
+		cur.execute("UPDATE budgets SET category = %s WHERE user_id = %s AND category = %s;", (name, user_id, old_name))
+	conn.commit()
+	cur.close()
+	conn.close()
+	return True
+
+def db_delete_user_category(category_id, user_id) -> bool:
+	conn = get_db_connection()
+	cur = conn.cursor()
+	cur.execute("DELETE FROM user_categories WHERE id = %s AND user_id = %s;", (category_id, user_id))
+	deleted = cur.rowcount
+	conn.commit()
+	cur.close()
+	conn.close()
+	return deleted > 0

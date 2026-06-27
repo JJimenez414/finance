@@ -31,6 +31,7 @@ export function BudgetProvider({ children }) {
   const [allTransactions, setAllTransactions]         = useState({});
   const [isLoading, setIsLoading]       = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [userCategories, setUserCategories] = useState([]);
 
   // Hydrate from cache on first mount so there's no blank screen
   useEffect(() => {
@@ -48,6 +49,44 @@ export function BudgetProvider({ children }) {
     setCurrentTransactions(cache.allTransactions[resolvedID] ?? []);
     setIsLoading(false);
   }, []);
+
+  // Fetch user-defined categories on mount
+  useEffect(() => {
+    fetch("/api/getCategories", { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data) => { if (data?.categories) setUserCategories(data.categories); })
+      .catch(console.error);
+  }, []);
+
+  function addUserCategory(name, color) {
+    return fetch("/api/createCategory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ name, color }),
+    })
+      .then((r) => r.json())
+      .then((cat) => { setUserCategories((prev) => [...prev, cat]); return cat; });
+  }
+
+  function updateUserCategory(id, name, color) {
+    return fetch(`/api/updateCategory/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ name, color }),
+    })
+      .then((r) => r.json())
+      .then(() => {
+        setUserCategories((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, name, color } : c))
+        );
+      });
+  }
+
+  function deleteUserCategory(id) {
+    return fetch(`/api/deleteCategory/${id}`, { method: "DELETE", headers: authHeaders() })
+      .then((r) => r.json())
+      .then(() => { setUserCategories((prev) => prev.filter((c) => c.id !== id)); });
+  }
 
   // Fetch fresh data from backend on mount
   useEffect(() => {
@@ -121,6 +160,10 @@ export function BudgetProvider({ children }) {
       addBudgetToCache,
       isLoading,
       isRefreshing,
+      userCategories,
+      addUserCategory,
+      updateUserCategory,
+      deleteUserCategory,
     }}>
       {children}
     </budgetContext.Provider>

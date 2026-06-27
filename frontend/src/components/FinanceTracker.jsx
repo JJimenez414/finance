@@ -4,7 +4,6 @@ import CategoryGrid from "./CategoryGrid";
 import TransactionList from "./TransactionList";
 import LoadingScreen from "./LoadingScreen";
 import { useBudgetContext } from "../context/useBudgetContext";
-import { CATEGORIES, CATEGORY_COLORS } from "../constants";
 import { authHeaders } from "../utils/auth";
 
 function getTodayDate() {
@@ -70,11 +69,11 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
-function TransactionForm({ defaultValues = {}, onSubmit, submitLabel }) {
+function TransactionForm({ defaultValues = {}, onSubmit, submitLabel, categories = [] }) {
   const [amount, setAmount]     = useState(defaultValues.amount ?? "");
   const [description, setDesc]  = useState(defaultValues.description ?? "");
   const [date, setDate]         = useState(defaultValues.date ?? getTodayDate());
-  const [category, setCategory] = useState(defaultValues.category ?? CATEGORIES[0]);
+  const [category, setCategory] = useState(defaultValues.category ?? categories[0]?.name ?? "");
 
   function handle(e) {
     e.preventDefault();
@@ -96,7 +95,7 @@ function TransactionForm({ defaultValues = {}, onSubmit, submitLabel }) {
       <div>
         <label className="field-label">Category</label>
         <select className="field-input" value={category} onChange={(e) => setCategory(e.target.value)}>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          {categories.map(({ name }) => <option key={name} value={name}>{name}</option>)}
         </select>
       </div>
       <div>
@@ -122,7 +121,13 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
     allBudgets,
     isLoading,
     isRefreshing,
+    userCategories,
   } = useBudgetContext();
+
+  const categoryColorMap = useMemo(
+    () => Object.fromEntries((userCategories ?? []).map(({ name, color }) => [name, color])),
+    [userCategories]
+  );
 
   const [activeCategory, setActiveCategory] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -147,12 +152,12 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
     [currentTransactions]
   );
 
-  const byCategory = useMemo(() => CATEGORIES.map((name) => ({
+  const byCategory = useMemo(() => (userCategories ?? []).map(({ name, color }) => ({
     name,
-    color: CATEGORY_COLORS[name],
+    color,
     spent: (currentTransactions ?? []).filter((p) => p.category === name).reduce((s, p) => s + p.amount, 0),
     budget: budgetByCategory[name] || 0,
-  })), [currentTransactions, budgetByCategory]);
+  })), [currentTransactions, budgetByCategory, userCategories]);
 
   const activeTxns = useMemo(
     () => (currentTransactions ?? []).filter((p) => p.category === activeCategory),
@@ -280,8 +285,8 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
               }}
             >
               <option value="" style={{ background: "#0c1a2e" }}>All categories</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c} style={{ background: "#0c1a2e" }}>{c}</option>
+              {(userCategories ?? []).map(({ name }) => (
+                <option key={name} value={name} style={{ background: "#0c1a2e" }}>{name}</option>
               ))}
             </select>
             <select
@@ -402,6 +407,7 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
             }
             onEdit={setEditingTransaction}
             onDelete={handleDelete}
+            categoryColorMap={categoryColorMap}
           />
         </>
       )}
@@ -467,12 +473,12 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
 
       <Modal open={!!editingTransaction} onClose={() => setEditingTransaction(null)} title="Edit transaction">
         {editingTransaction && (
-          <TransactionForm defaultValues={editingTransaction} onSubmit={handleUpdate} submitLabel="Save changes" />
+          <TransactionForm defaultValues={editingTransaction} onSubmit={handleUpdate} submitLabel="Save changes" categories={userCategories} />
         )}
       </Modal>
 
       <Modal open={isAddTransactionOpen} onClose={() => setIsAddTransactionOpen(false)} title="Add transaction">
-        <TransactionForm onSubmit={handleAdd} submitLabel="Add transaction" />
+        <TransactionForm onSubmit={handleAdd} submitLabel="Add transaction" categories={userCategories} />
       </Modal>
     </div>
   );

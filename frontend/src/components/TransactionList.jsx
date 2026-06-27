@@ -1,7 +1,6 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { CATEGORY_COLORS } from "../constants";
 
-export default function TransactionList({ transactions, onEdit, onDelete }) {
+export default function TransactionList({ transactions, onEdit, onDelete, categoryColorMap = {} }) {
   if (transactions.length === 0) {
     return (
       <div className="px-4 pt-2 flex-1 overflow-y-auto">
@@ -23,7 +22,7 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
               background: "#13131e",
               borderRadius: "12px",
               border: "1px solid rgba(255,255,255,0.07)",
-              borderLeft: `3px solid ${CATEGORY_COLORS[t.category] ?? "#fff"}`,
+              borderLeft: `3px solid ${categoryColorMap[t.category] ?? "#fff"}`,
             }}
           >
             <div className="flex-1 min-w-0">
@@ -34,7 +33,7 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
                   style={{
                     background: "rgba(255,255,255,0.07)",
                     borderRadius: "6px",
-                    color: CATEGORY_COLORS[t.category] ?? "white",
+                    color: categoryColorMap[t.category] ?? "white",
                   }}
                 >
                   {t.category}
