@@ -50,9 +50,15 @@ export default function CategoryGrid({ byCategory, onCategoryClick }) {
                 >
                   {hasBudget ? `$${leftover.toFixed(2)}` : `$${cat.spent.toFixed(2)}`}
                 </p>
-                <p className="text-xs mb-2.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>
                   {hasBudget ? `of $${cat.budget.toFixed(2)}` : "no budget set"}
                 </p>
+                {hasBudget && (
+                  <p className="text-xs mb-2.5" style={{ color: "rgba(255,255,255,0.45)" }}>
+                    spent ${cat.spent.toFixed(2)}
+                  </p>
+                )}
+                {!hasBudget && <div className="mb-2.5" />}
                 <div className="h-1 overflow-hidden" style={{ background: "rgba(255,255,255,0.08)", borderRadius: "2px" }}>
                   <div
                     style={{

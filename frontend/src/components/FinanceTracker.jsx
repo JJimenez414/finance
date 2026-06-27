@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Trash2, X, SlidersHorizontal } from "lucide-react";
 import CategoryGrid from "./CategoryGrid";
 import TransactionList from "./TransactionList";
 import LoadingScreen from "./LoadingScreen";
@@ -127,6 +127,13 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
   const [activeCategory, setActiveCategory] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [activeTab, setActiveTab] = useState("categories");
+  const [filterText, setFilterText] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [sortBy, setSortBy] = useState("date");
+  const [sortAsc, setSortAsc] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const totalBudget = Number(allBudgets[currentBudgetID]?.budget_amount) || 0;
 
@@ -259,11 +266,144 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
       )}
 
       {activeTab === "transactions" && (
-        <TransactionList
-          transactions={currentTransactions}
-          onEdit={setEditingTransaction}
-          onDelete={handleDelete}
-        />
+        <>
+          {/* Primary filter row */}
+          <div className="px-4 pb-2 flex gap-2 flex-shrink-0">
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="flex-1 h-9 px-3 text-xs text-white/70 focus:outline-none appearance-none cursor-pointer"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "8px",
+              }}
+            >
+              <option value="" style={{ background: "#0c1a2e" }}>All categories</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c} style={{ background: "#0c1a2e" }}>{c}</option>
+              ))}
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="h-9 px-3 text-xs text-white/70 focus:outline-none appearance-none cursor-pointer"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "8px",
+              }}
+            >
+              <option value="date" style={{ background: "#0c1a2e" }}>Date</option>
+              <option value="amount" style={{ background: "#0c1a2e" }}>Amount</option>
+            </select>
+            <button
+              onClick={() => setSortAsc((v) => !v)}
+              title={sortAsc ? "Ascending" : "Descending"}
+              className="h-9 w-9 flex items-center justify-center flex-shrink-0 text-white/60 hover:text-white transition-colors"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "8px",
+              }}
+            >
+              {sortAsc ? "↑" : "↓"}
+            </button>
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              title="More filters"
+              className="h-9 w-9 flex items-center justify-center flex-shrink-0 transition-colors"
+              style={{
+                background: showFilters ? "rgba(139,92,246,0.25)" : "rgba(255,255,255,0.06)",
+                border: showFilters ? "1px solid rgba(139,92,246,0.5)" : "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "8px",
+                color: showFilters ? "#a78bfa" : "rgba(255,255,255,0.6)",
+              }}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Extra filters (search + date range) */}
+          {showFilters && (
+            <>
+              <div className="px-4 pb-2 flex gap-2 flex-shrink-0">
+                <input
+                  type="text"
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                  placeholder="Search by description or amount..."
+                  className="flex-1 h-9 px-3 text-xs text-white placeholder:text-white/30 focus:outline-none"
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "8px",
+                  }}
+                />
+              </div>
+              <div className="px-4 pb-3 flex gap-2 flex-shrink-0 items-center">
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  className="flex-1 h-9 px-3 text-xs text-white/70 focus:outline-none"
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "8px",
+                    colorScheme: "dark",
+                  }}
+                />
+                <span className="text-xs text-white/30 flex-shrink-0">to</span>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  className="flex-1 h-9 px-3 text-xs text-white/70 focus:outline-none"
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "8px",
+                    colorScheme: "dark",
+                  }}
+                />
+                {(filterDateFrom || filterDateTo) && (
+                  <button
+                    onClick={() => { setFilterDateFrom(""); setFilterDateTo(""); }}
+                    className="h-9 w-9 flex items-center justify-center flex-shrink-0 text-white/40 hover:text-white transition-colors"
+                    style={{
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          <TransactionList
+            transactions={(currentTransactions ?? [])
+              .filter((t) => {
+                const matchText = !filterText || t.description?.toLowerCase().includes(filterText.toLowerCase()) || String(t.amount).includes(filterText);
+                const matchCat  = !filterCategory || t.category === filterCategory;
+                const matchFrom = !filterDateFrom || t.date >= filterDateFrom;
+                const matchTo   = !filterDateTo   || t.date <= filterDateTo;
+                return matchText && matchCat && matchFrom && matchTo;
+              })
+              .sort((a, b) => {
+                const diff = sortBy === "date"
+                  ? a.date.localeCompare(b.date)
+                  : a.amount - b.amount;
+                return sortAsc ? diff : -diff;
+              })
+            }
+            onEdit={setEditingTransaction}
+            onDelete={handleDelete}
+          />
+        </>
       )}
 
       {/* Category transactions sheet */}
@@ -272,6 +412,31 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
         onClose={() => setActiveCategory(null)}
         title={activeCategory ?? ""}
       >
+        {(() => {
+          const cat = byCategory.find((c) => c.name === activeCategory);
+          return cat && (
+            <div className="flex gap-3 mb-4">
+              <div className="flex-1 px-4 py-3" style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px" }}>
+                <p className="text-[11px] mb-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Spent</p>
+                <p className="text-base font-bold text-white">${cat.spent.toFixed(2)}</p>
+              </div>
+              {cat.budget > 0 && (
+                <>
+                  <div className="flex-1 px-4 py-3" style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px" }}>
+                    <p className="text-[11px] mb-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Budget</p>
+                    <p className="text-base font-bold text-white">${cat.budget.toFixed(2)}</p>
+                  </div>
+                  <div className="flex-1 px-4 py-3" style={{ background: "rgba(255,255,255,0.04)", borderRadius: "10px" }}>
+                    <p className="text-[11px] mb-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Left</p>
+                    <p className="text-base font-bold" style={{ color: cat.budget - cat.spent < 0 ? "#f87171" : "white" }}>
+                      ${(cat.budget - cat.spent).toFixed(2)}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
         {activeTxns.length === 0 ? (
           <p className="text-sm text-white/30 text-center py-8">No transactions yet.</p>
         ) : (
