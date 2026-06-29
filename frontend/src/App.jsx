@@ -1,5 +1,7 @@
 import FinanceTracker from "./components/FinanceTracker";
 import BudgetManager from "./components/BudgetManager";
+import Trend from "./components/Trend";
+import AddTransactionModal from "./components/AddTransactionModal";
 import Login from "./components/Login";
 import NavButton from "./components/NavButton";
 import LoadingScreen from "./components/LoadingScreen";
@@ -59,12 +61,11 @@ export default function App() {
 
   return (
     <BudgetProvider>
-      <NavButton onNavigate={setCurrentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} onLogout={handleLogout} />
-      {currentPage === "tracker" ? (
-        <FinanceTracker isAddTransactionOpen={isAddTransactionOpen} setIsAddTransactionOpen={setIsAddTransactionOpen} />
-      ) : (
-        <BudgetManager />
-      )}
+      <NavButton onNavigate={setCurrentPage} currentPage={currentPage} setIsAddTransactionOpen={setIsAddTransactionOpen} onLogout={handleLogout} />
+      <AddTransactionModal open={isAddTransactionOpen} onClose={() => setIsAddTransactionOpen(false)} />
+      {currentPage === "tracker" && <FinanceTracker />}
+      {currentPage === "budget"  && <BudgetManager />}
+      {currentPage === "trend"   && <Trend />}
     </BudgetProvider>
   );
 }

@@ -111,7 +111,7 @@ function TransactionForm({ defaultValues = {}, onSubmit, submitLabel, categories
   );
 }
 
-export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransactionOpen }) {
+export default function FinanceTracker() {
   const {
     currentBudgetID,
     selectBudget,
@@ -164,26 +164,6 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
     [currentTransactions, activeCategory]
   );
 
-  function handleAdd(vals) {
-    const tempID = crypto.randomUUID();
-    const newTransaction = { id: tempID, budget_id: currentBudgetID, ...vals };
-    setCurrentTransactions((prev) => [newTransaction, ...prev]);
-    setIsAddTransactionOpen(false);
-    fetch("/api/addTransaction", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify(newTransaction),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        // swap the temporary UUID for the real database ID
-        setCurrentTransactions((prev) =>
-          prev.map((t) => t.id === tempID ? { ...t, id: data.id } : t)
-        );
-      })
-      .catch(() => setCurrentTransactions((prev) => prev.filter((t) => t.id !== tempID)));
-  }
-
   function handleUpdate(vals) {
     setCurrentTransactions((prev) =>
       prev.map((t) => t.id === editingTransaction.id ? { ...t, ...vals } : t)
@@ -206,7 +186,7 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
   if (isLoading) return <LoadingScreen />;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: "#0c0c18" }}>
+    <div className="flex flex-col overflow-hidden" style={{ background: "#0c0c18", height: "calc(100vh - 80px)" }}>
       {isRefreshing && (
         <div className="fixed top-0 left-0 right-0 z-[400] h-0.5" style={{ background: "rgba(255,255,255,0.05)" }}>
           <div className="h-full animate-pulse" style={{ background: "linear-gradient(90deg, #14b8a6, #67e8f9)", width: "60%" }} />
@@ -477,9 +457,6 @@ export default function FinanceTracker({ isAddTransactionOpen, setIsAddTransacti
         )}
       </Modal>
 
-      <Modal open={isAddTransactionOpen} onClose={() => setIsAddTransactionOpen(false)} title="Add transaction">
-        <TransactionForm onSubmit={handleAdd} submitLabel="Add transaction" categories={userCategories} />
-      </Modal>
     </div>
   );
 }
