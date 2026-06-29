@@ -298,11 +298,12 @@ async def update_category(category_id: int, request: Request, current_username: 
 	return {"message": "Category updated"}
 
 @protected_router.delete("/deleteCategory/{category_id}")
-def delete_category(category_id: int, current_username: str = Depends(get_current_user)):
+async def delete_category(category_id: int, request: Request, current_username: str = Depends(get_current_user)):
+	data = await request.json()
 	user = get_user_by_username(current_username)
 	if user is None:
 		raise HTTPException(status_code=404, detail="User not found")
-	ok = db_delete_user_category(category_id, user["id"])
+	ok = db_delete_user_category(category_id, user["id"], data.get("currentBudgetID", ""))
 	if not ok:
 		raise HTTPException(status_code=404, detail="Category not found")
 	logger.info("DELETE /deleteCategory/%s — user=%s", category_id, current_username)

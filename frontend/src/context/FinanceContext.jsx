@@ -83,7 +83,12 @@ export function BudgetProvider({ children }) {
   }
 
   function deleteUserCategory(id) {
-    return fetch(`/api/deleteCategory/${id}`, { method: "DELETE", headers: authHeaders() })
+    currentBudgetID
+    return fetch(`/api/deleteCategory/${id}`, { 
+      method: "DELETE", 
+      headers: { "Content-Type": "application/json", ...authHeaders() }, 
+      body: JSON.stringify({ currentBudgetID })
+    })
       .then((r) => r.json())
       .then(() => { setUserCategories((prev) => prev.filter((c) => c.id !== id)); });
   }

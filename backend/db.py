@@ -347,9 +347,19 @@ def db_update_user_category(category_id, user_id, name, color) -> bool:
 	conn.close()
 	return True
 
-def db_delete_user_category(category_id, user_id) -> bool:
+def db_delete_user_category(category_id, user_id, budget_id) -> bool:
 	conn = get_db_connection()
 	cur = conn.cursor()
+
+	# Get name of category as a key
+	cur.execute("SELECT name FROM user_categories WHERE id = %s AND user_id=%s", (category_id, user_id))
+	category_info = cur.fetchone()
+	category_name = category_info[0]
+
+	# Delete all of the transactions under the deleted category
+	cur.execute("DELETE FROM transactions WHERE user_id = %s AND category = %s AND budget_id = %s;", (user_id, category_name, budget_id))
+
+	# Delete user_category
 	cur.execute("DELETE FROM user_categories WHERE id = %s AND user_id = %s;", (category_id, user_id))
 	deleted = cur.rowcount
 	conn.commit()
