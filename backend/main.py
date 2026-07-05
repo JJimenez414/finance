@@ -121,7 +121,7 @@ async def add_transaction(request: Request, current_username: str = Depends(get_
 		data.get("description", ""),
 		data.get("budget_id"),
 	)
-	logger.info("POST /addTransaction — user=%s category=%s amount=%s", current_username, data.get("category"), data.get("amount"))
+	logger.info("POST /addTransaction — user=%s category=%s amount=%s budget=%s", current_username, data.get("category"), data.get("amount"), data.get("budget_id"))
 	return {"message": "Transaction added successfully", "id": new_id}
 
 @protected_router.delete("/deleteTransaction/{transaction_id}")

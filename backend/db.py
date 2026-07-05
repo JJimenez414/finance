@@ -120,6 +120,15 @@ def db_add_transaction(user_id, date, category, amount, description, budget_id):
 		(user_id, date, category, amount, description, budget_id)
 	)
 	new_id = cur.fetchone()[0]
+	cur.execute(
+		"SELECT id FROM budgets WHERE user_id = %s AND category = %s AND budget_id = %s;",
+		(user_id, category, budget_id)
+	)
+	if cur.fetchone() is None:
+		cur.execute(
+			"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, 0, %s);",
+			(user_id, category, budget_id)
+		)
 	conn.commit()
 	cur.close()
 	conn.close()
@@ -356,8 +365,11 @@ def db_delete_user_category(category_id, user_id, budget_id) -> bool:
 	category_info = cur.fetchone()
 	category_name = category_info[0]
 
-	# Delete all of the transactions under the deleted category
+	# Delete all transactions for this category in the current budget
 	cur.execute("DELETE FROM transactions WHERE user_id = %s AND category = %s AND budget_id = %s;", (user_id, category_name, budget_id))
+
+	# Delete the budget allocation for this category
+	cur.execute("DELETE FROM budgets WHERE user_id = %s AND category = %s AND budget_id = %s;", (user_id, category_name, budget_id))
 
 	# Delete user_category
 	cur.execute("DELETE FROM user_categories WHERE id = %s AND user_id = %s;", (category_id, user_id))

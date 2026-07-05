@@ -37,7 +37,7 @@ export default function CreateBudgetModal({ open, onClose, currentMonth, onCreat
     setSaving(true);
 
     const categories = Object.entries(cats)
-      .filter(([, v]) => v)
+      .filter(([, v]) => v !== "")
       .map(([category, amount]) => ({ category, amount: Number(amount) }));
 
     fetch("/api/createBudget", {
