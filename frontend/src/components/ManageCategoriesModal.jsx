@@ -36,6 +36,7 @@ export default function ManageCategoriesModal({ open, onClose }) {
   const [editName, setEditName]       = useState("");
   const [editColor, setEditColor]     = useState("");
   const [newName, setNewName]         = useState("");
+  const [newBudget, setNewBudget]     = useState(0);
   const [newColor, setNewColor]       = useState(PRESET_COLORS[0]);
   const [error, setError]             = useState("");
 
@@ -66,7 +67,7 @@ export default function ManageCategoriesModal({ open, onClose }) {
 
   function handleAdd() {
     if (!newName.trim()) { setError("Enter a category name."); return; }
-    addUserCategory(newName.trim(), newColor)
+    addUserCategory(newName.trim(), newColor, newBudget)
       .then(() => { setNewName(""); setNewColor(PRESET_COLORS[0]); setError(""); })
       .catch(() => setError("Failed to add. Name may already exist."));
   }
@@ -130,6 +131,15 @@ export default function ManageCategoriesModal({ open, onClose }) {
               onChange={(e) => { setNewName(e.target.value); setError(""); }}
               placeholder="Category name"
               className="w-full h-10 px-4 text-sm text-white placeholder:text-white/25 focus:outline-none"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "10px" }}
+            />
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3 pt-3">Amount</p>
+            <input
+              type="text"
+              value={newBudget}
+              onChange={(e) => { setNewBudget(e.target.value); setError(""); }}
+              placeholder="Allocated"
+              className="w-full h-10 px-4 text-sm text-white placeholder:text-white/25 focus:outline-none mb-2"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "10px" }}
             />
             <ColorPicker value={newColor} onChange={setNewColor} />

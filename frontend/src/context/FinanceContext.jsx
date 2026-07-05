@@ -58,11 +58,11 @@ export function BudgetProvider({ children }) {
       .catch(console.error);
   }, []);
 
-  function addUserCategory(name, color) {
+  function addUserCategory(name, color, amount) {
     return fetch("/api/createCategory", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ name, color }),
+      body: JSON.stringify({ name, color, amount, currentBudgetID}),
     })
       .then((r) => r.json())
       .then((cat) => { setUserCategories((prev) => [...prev, cat]); return cat; });

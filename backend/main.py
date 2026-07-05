@@ -275,10 +275,12 @@ async def create_category(request: Request, current_username: str = Depends(get_
 		raise HTTPException(status_code=404, detail="User not found")
 	name = data.get("name", "").strip()
 	color = data.get("color", "#888888")
+	amount = data.get("amount", 0)
+	budget_id = data.get("currentBudgetID", "")
 	if not name:
 		raise HTTPException(status_code=400, detail="name is required")
-	new_id = db_create_user_category(user["id"], name, color)
-	logger.info("POST /createCategory — user=%s name=%s", current_username, name)
+	new_id = db_create_user_category(user["id"], name, color, amount, budget_id)
+	logger.info("POST /createCategory — user=%s name=%s amount=%s", current_username, name, amount)
 	return {"id": new_id, "name": name, "color": color}
 
 @protected_router.put("/updateCategory/{category_id}")

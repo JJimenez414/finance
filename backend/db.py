@@ -321,18 +321,27 @@ def db_get_user_categories(user_id) -> list:
 	conn.close()
 	return [dict(r) for r in rows]
 
-def db_create_user_category(user_id, name, color) -> int:
+def db_create_user_category(user_id, name, color, budget_amount, budget_id) -> int:
 	conn = get_db_connection()
 	cur = conn.cursor()
+	# Adding budget to categories 
 	cur.execute(
 		"INSERT INTO user_categories (user_id, name, color) VALUES (%s, %s, %s) RETURNING id;",
 		(user_id, name, color)
 	)
 	new_id = cur.fetchone()[0]
+
+	# Adding budget to budgets
+	cur.execute(
+		"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, %s, %s);",
+		(user_id, name, budget_amount, budget_id)
+	)
 	conn.commit()
 	cur.close()
 	conn.close()
 	return new_id
+
+# INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, 0, %s);
 
 def db_update_user_category(category_id, user_id, name, color) -> bool:
 	conn = get_db_connection()
