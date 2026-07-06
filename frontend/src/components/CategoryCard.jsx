@@ -1,14 +1,4 @@
-const CATEGORY_COLORS = {
-  Living:         "#14b8a6",
-  Food:           "#f59e0b",
-  Transportation: "#60a5fa",
-  Finance:        "#a78bfa",
-  Miscellaneous:  "#f472b6",
-  Give:           "#a3e635",
-};
-
-export default function CategoryCard({ cat, value, totalNum, isEditing, onChange }) {
-  const color = CATEGORY_COLORS[cat];
+export default function CategoryCard({ cat, color = "#888888", value, totalNum, isEditing, onChange }) {
   const num   = Number(value) || 0;
   const pct   = totalNum > 0 && num > 0 ? ((num / totalNum) * 100).toFixed(0) : null;
 

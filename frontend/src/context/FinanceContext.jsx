@@ -31,6 +31,7 @@ export function BudgetProvider({ children }) {
   const [allTransactions, setAllTransactions]         = useState({});
   const [isLoading, setIsLoading]       = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [userCategories, setUserCategories] = useState([]);
 
   // Hydrate from cache on first mount so there's no blank screen
   useEffect(() => {
@@ -46,8 +47,67 @@ export function BudgetProvider({ children }) {
     setCurrentBudgetID(resolvedID);
     setCurrentCategories(cache.allCategories[resolvedID] ?? []);
     setCurrentTransactions(cache.allTransactions[resolvedID] ?? []);
+    if (cache.userCategories) setUserCategories(cache.userCategories);
     setIsLoading(false);
   }, []);
+
+  // Fetch user-defined categories on mount
+  useEffect(() => {
+    fetch("/api/getCategories", { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data) => { if (data?.categories) setUserCategories(data.categories); })
+      .catch(console.error);
+  }, []);
+
+  function addUserCategory(name, color, amount) {
+    return fetch("/api/createCategory", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ name, color, amount, currentBudgetID}),
+    })
+      .then((r) => r.json())
+      .then((cat) => {
+        setUserCategories((prev) => {
+          const updated = [...prev, cat];
+          saveCache({ allBudgets, allCategories, allTransactions, userCategories: updated });
+          return updated;
+        });
+        return cat;
+      });
+  }
+
+  function updateUserCategory(id, name, color) {
+    return fetch(`/api/updateCategory/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ name, color }),
+    })
+      .then((r) => r.json())
+      .then(() => {
+        setUserCategories((prev) => {
+          const updated = prev.map((c) => (c.id === id ? { ...c, name, color } : c));
+          saveCache({ allBudgets, allCategories, allTransactions, userCategories: updated });
+          return updated;
+        });
+      });
+  }
+
+  function deleteUserCategory(id) {
+    currentBudgetID
+    return fetch(`/api/deleteCategory/${id}`, { 
+      method: "DELETE", 
+      headers: { "Content-Type": "application/json", ...authHeaders() }, 
+      body: JSON.stringify({ currentBudgetID })
+    })
+      .then((r) => r.json())
+      .then(() => {
+        setUserCategories((prev) => {
+          const updated = prev.filter((c) => c.id !== id);
+          saveCache({ allBudgets, allCategories, allTransactions, userCategories: updated });
+          return updated;
+        });
+      });
+  }
 
   // Fetch fresh data from backend on mount
   useEffect(() => {
@@ -73,7 +133,7 @@ export function BudgetProvider({ children }) {
         setCurrentCategories(categories[resolvedID] ?? []);
         setCurrentTransactions(transactions[resolvedID] ?? []);
 
-        saveCache({ allBudgets: budgets, allCategories: categories, allTransactions: transactions });
+        saveCache({ allBudgets: budgets, allCategories: categories, allTransactions: transactions, userCategories });
       })
       .catch(console.error)
       .finally(() => { setIsLoading(false); setIsRefreshing(false); });
@@ -92,7 +152,7 @@ export function BudgetProvider({ children }) {
     const updatedCategories = { ...allCategories, [budgetID]: newCategories };
     setAllBudgets(updatedBudgets);
     setAllCategories(updatedCategories);
-    saveCache({ allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions });
+    saveCache({ allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions, userCategories });
   }
 
   function addBudgetToCache({ id, description, total_budget, categories }) {
@@ -106,7 +166,7 @@ export function BudgetProvider({ children }) {
     setCurrentCategories(categories);
     setCurrentTransactions([]);
     localStorage.setItem("finance_budget_id", id);
-    saveCache({ allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions: updatedTransactions });
+    saveCache({ allBudgets: updatedBudgets, allCategories: updatedCategories, allTransactions: updatedTransactions, userCategories });
   }
 
   return (
@@ -121,6 +181,10 @@ export function BudgetProvider({ children }) {
       addBudgetToCache,
       isLoading,
       isRefreshing,
+      userCategories,
+      addUserCategory,
+      updateUserCategory,
+      deleteUserCategory,
     }}>
       {children}
     </budgetContext.Provider>

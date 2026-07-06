@@ -19,6 +19,10 @@ from db import (
 	db_get_all_budgets,
 	db_get_budget_categories,
 	db_get_finance_data,
+	db_get_user_categories,
+	db_create_user_category,
+	db_update_user_category,
+	db_delete_user_category,
 )
 import uvicorn
 from logger import get_logger
@@ -117,7 +121,7 @@ async def add_transaction(request: Request, current_username: str = Depends(get_
 		data.get("description", ""),
 		data.get("budget_id"),
 	)
-	logger.info("POST /addTransaction — user=%s category=%s amount=%s", current_username, data.get("category"), data.get("amount"))
+	logger.info("POST /addTransaction — user=%s category=%s amount=%s budget=%s", current_username, data.get("category"), data.get("amount"), data.get("budget_id"))
 	return {"message": "Transaction added successfully", "id": new_id}
 
 @protected_router.delete("/deleteTransaction/{transaction_id}")
@@ -253,6 +257,59 @@ def get_finance_data(current_username: str = Depends(get_current_user)):
 	logger.info("GET /get_finance_data — done")
 	return data
 
+
+@protected_router.get("/getCategories")
+def get_categories(current_username: str = Depends(get_current_user)):
+	logger.info("GET /getCategories — user=%s", current_username)
+	user = get_user_by_username(current_username)
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+	categories = db_get_user_categories(user["id"])
+	return {"categories": categories}
+
+@protected_router.post("/createCategory")
+async def create_category(request: Request, current_username: str = Depends(get_current_user)):
+	data = await request.json()
+	user = get_user_by_username(current_username)
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+	name = data.get("name", "").strip()
+	color = data.get("color", "#888888")
+	amount = data.get("amount", 0)
+	budget_id = data.get("currentBudgetID", "")
+	if not name:
+		raise HTTPException(status_code=400, detail="name is required")
+	new_id = db_create_user_category(user["id"], name, color, amount, budget_id)
+	logger.info("POST /createCategory — user=%s name=%s amount=%s", current_username, name, amount)
+	return {"id": new_id, "name": name, "color": color}
+
+@protected_router.put("/updateCategory/{category_id}")
+async def update_category(category_id: int, request: Request, current_username: str = Depends(get_current_user)):
+	data = await request.json()
+	user = get_user_by_username(current_username)
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+	name = data.get("name", "").strip()
+	color = data.get("color", "#888888")
+	if not name:
+		raise HTTPException(status_code=400, detail="name is required")
+	ok = db_update_user_category(category_id, user["id"], name, color)
+	if not ok:
+		raise HTTPException(status_code=404, detail="Category not found")
+	logger.info("PUT /updateCategory/%s — user=%s name=%s", category_id, current_username, name)
+	return {"message": "Category updated"}
+
+@protected_router.delete("/deleteCategory/{category_id}")
+async def delete_category(category_id: int, request: Request, current_username: str = Depends(get_current_user)):
+	data = await request.json()
+	user = get_user_by_username(current_username)
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+	ok = db_delete_user_category(category_id, user["id"], data.get("currentBudgetID", ""))
+	if not ok:
+		raise HTTPException(status_code=404, detail="Category not found")
+	logger.info("DELETE /deleteCategory/%s — user=%s", category_id, current_username)
+	return {"message": "Category deleted"}
 
 app.include_router(public_router)
 app.include_router(protected_router)
