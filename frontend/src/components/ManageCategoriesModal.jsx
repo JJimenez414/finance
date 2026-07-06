@@ -84,7 +84,7 @@ export default function ManageCategoriesModal({ open, onClose }) {
 
   return (
     <>
-    <div className="fixed inset-0 z-[200] flex items-end justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[900] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative w-full max-w-md bg-[#13131e] border-t border-white/8"

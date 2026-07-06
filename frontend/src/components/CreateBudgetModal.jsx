@@ -57,7 +57,7 @@ export default function CreateBudgetModal({ open, onClose, currentMonth, onCreat
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end justify-center" onClick={handleClose}>
+    <div className="fixed inset-0 z-[300] flex items-end justify-center" onClick={handleClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative w-full max-w-md bg-[#13131e] border-t border-white/8"
