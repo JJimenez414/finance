@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Pencil, Trash2, Check, Plus } from "lucide-react";
 import { useBudgetContext } from "../context/useBudgetContext";
+import ConfirmModal from "./ConfirmModal";
 
 const PRESET_COLORS = [
   "#14b8a6", "#f59e0b", "#60a5fa", "#a78bfa",
@@ -32,12 +33,15 @@ function ColorPicker({ value, onChange }) {
 export default function ManageCategoriesModal({ open, onClose }) {
   const { userCategories, addUserCategory, updateUserCategory, deleteUserCategory } = useBudgetContext();
 
-  const [editingId, setEditingId]     = useState(null);
-  const [editName, setEditName]       = useState("");
-  const [editColor, setEditColor]     = useState("");
-  const [newName, setNewName]         = useState("");
-  const [newColor, setNewColor]       = useState(PRESET_COLORS[0]);
-  const [error, setError]             = useState("");
+  const [editingId, setEditingId]         = useState(null);
+  const [editName, setEditName]           = useState("");
+  const [editColor, setEditColor]         = useState("");
+  const [newName, setNewName]             = useState("");
+  const [newBudget, setNewBudget]         = useState(0);
+  const [newColor, setNewColor]           = useState(PRESET_COLORS[0]);
+  const [error, setError]                 = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [confirmDeleteName, setConfirmDeleteName] = useState("");
 
   if (!open) return null;
 
@@ -60,18 +64,26 @@ export default function ManageCategoriesModal({ open, onClose }) {
       .catch(() => setError("Failed to update."));
   }
 
-  function handleDelete(id) {
-    deleteUserCategory(id).catch(() => setError("Failed to delete."));
+  function promptDelete(cat) {
+    setConfirmDeleteId(cat.id);
+    setConfirmDeleteName(cat.name);
+  }
+
+  function confirmDelete() {
+    deleteUserCategory(confirmDeleteId)
+      .catch(() => setError("Failed to delete."))
+      .finally(() => { setConfirmDeleteId(null); setConfirmDeleteName(""); });
   }
 
   function handleAdd() {
     if (!newName.trim()) { setError("Enter a category name."); return; }
-    addUserCategory(newName.trim(), newColor)
+    addUserCategory(newName.trim(), newColor, newBudget)
       .then(() => { setNewName(""); setNewColor(PRESET_COLORS[0]); setError(""); })
       .catch(() => setError("Failed to add. Name may already exist."));
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-[200] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
@@ -115,7 +127,7 @@ export default function ManageCategoriesModal({ open, onClose }) {
               >
                 <span className="flex-1 text-sm text-white">{cat.name}</span>
                 <button onClick={() => startEdit(cat)} className="icon-btn"><Pencil className="w-3.5 h-3.5" /></button>
-                <button onClick={() => handleDelete(cat.id)} className="icon-btn-danger"><Trash2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => promptDelete(cat)} className="icon-btn-danger"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             )
           )}
@@ -130,6 +142,15 @@ export default function ManageCategoriesModal({ open, onClose }) {
               onChange={(e) => { setNewName(e.target.value); setError(""); }}
               placeholder="Category name"
               className="w-full h-10 px-4 text-sm text-white placeholder:text-white/25 focus:outline-none"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "10px" }}
+            />
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3 pt-3">Amount</p>
+            <input
+              type="text"
+              value={newBudget}
+              onChange={(e) => { setNewBudget(e.target.value); setError(""); }}
+              placeholder="Allocated"
+              className="w-full h-10 px-4 text-sm text-white placeholder:text-white/25 focus:outline-none mb-2"
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: "10px" }}
             />
             <ColorPicker value={newColor} onChange={setNewColor} />
@@ -149,5 +170,15 @@ export default function ManageCategoriesModal({ open, onClose }) {
         </div>
       </div>
     </div>
+
+    <ConfirmModal
+      open={!!confirmDeleteId}
+      title="Delete category"
+      message={`Are you sure you want to delete "${confirmDeleteName}"? This will also remove its budget allocation and all related transactions.`}
+      confirmLabel="Delete"
+      onConfirm={confirmDelete}
+      onCancel={() => { setConfirmDeleteId(null); setConfirmDeleteName(""); }}
+    />
+    </>
   );
 }

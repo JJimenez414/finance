@@ -120,6 +120,15 @@ def db_add_transaction(user_id, date, category, amount, description, budget_id):
 		(user_id, date, category, amount, description, budget_id)
 	)
 	new_id = cur.fetchone()[0]
+	cur.execute(
+		"SELECT id FROM budgets WHERE user_id = %s AND category = %s AND budget_id = %s;",
+		(user_id, category, budget_id)
+	)
+	if cur.fetchone() is None:
+		cur.execute(
+			"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, 0, %s);",
+			(user_id, category, budget_id)
+		)
 	conn.commit()
 	cur.close()
 	conn.close()
@@ -312,18 +321,27 @@ def db_get_user_categories(user_id) -> list:
 	conn.close()
 	return [dict(r) for r in rows]
 
-def db_create_user_category(user_id, name, color) -> int:
+def db_create_user_category(user_id, name, color, budget_amount, budget_id) -> int:
 	conn = get_db_connection()
 	cur = conn.cursor()
+	# Adding budget to categories 
 	cur.execute(
 		"INSERT INTO user_categories (user_id, name, color) VALUES (%s, %s, %s) RETURNING id;",
 		(user_id, name, color)
 	)
 	new_id = cur.fetchone()[0]
+
+	# Adding budget to budgets
+	cur.execute(
+		"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, %s, %s);",
+		(user_id, name, budget_amount, budget_id)
+	)
 	conn.commit()
 	cur.close()
 	conn.close()
 	return new_id
+
+# INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, 0, %s);
 
 def db_update_user_category(category_id, user_id, name, color) -> bool:
 	conn = get_db_connection()
@@ -347,9 +365,22 @@ def db_update_user_category(category_id, user_id, name, color) -> bool:
 	conn.close()
 	return True
 
-def db_delete_user_category(category_id, user_id) -> bool:
+def db_delete_user_category(category_id, user_id, budget_id) -> bool:
 	conn = get_db_connection()
 	cur = conn.cursor()
+
+	# Get name of category as a key
+	cur.execute("SELECT name FROM user_categories WHERE id = %s AND user_id=%s", (category_id, user_id))
+	category_info = cur.fetchone()
+	category_name = category_info[0]
+
+	# Delete all transactions for this category in the current budget
+	cur.execute("DELETE FROM transactions WHERE user_id = %s AND category = %s AND budget_id = %s;", (user_id, category_name, budget_id))
+
+	# Delete the budget allocation for this category
+	cur.execute("DELETE FROM budgets WHERE user_id = %s AND category = %s AND budget_id = %s;", (user_id, category_name, budget_id))
+
+	# Delete user_category
 	cur.execute("DELETE FROM user_categories WHERE id = %s AND user_id = %s;", (category_id, user_id))
 	deleted = cur.rowcount
 	conn.commit()

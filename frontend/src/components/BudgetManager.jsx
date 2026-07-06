@@ -117,7 +117,7 @@ export default function BudgetManager() {
     setError("");
 
     const newCategories = Object.entries(cats)
-      .filter(([, v]) => v)
+      .filter(([, v]) => v !== "")
       .map(([category, amount]) => ({ category, amount: Number(amount) }));
 
     fetch("/api/updateBudget", {
