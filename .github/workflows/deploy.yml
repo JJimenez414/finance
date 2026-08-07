@@ -1,0 +1,32 @@
+name: Deploy to Raspberry Pi
+
+on:
+  push:
+    branches: [main]   # adjust if your default branch has a different name
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /home/jjimenez/Documents/finance
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Install backend dependencies
+        run: |
+          cd /home/jjimenez/Documents/finance/backend
+          source venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Install frontend dependencies
+        run: |
+          cd /home/jjimenez/Documents/finance/frontend
+          npm install
+
+      - name: Restart services
+        run: |
+          sudo systemctl restart finance-backend
+          sudo systemctl restart finance-frontend
