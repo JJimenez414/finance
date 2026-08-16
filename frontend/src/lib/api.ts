@@ -126,3 +126,41 @@ export function deleteCategory(input: DeleteCategoryInput) {
     body: JSON.stringify({ currentBudgetID: input.budgetId }),
   })
 }
+
+export type UpdateCategoryInput = {
+  categoryId: number
+  name: string
+  color: string
+}
+
+export type UpdateCategoryResponse = {
+  message: string
+}
+
+export function updateCategory(input: UpdateCategoryInput) {
+  return request<UpdateCategoryResponse>(`/updateCategory/${input.categoryId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name: input.name, color: input.color }),
+  })
+}
+
+export type UpdateBudgetInput = {
+  budgetId: string
+  totalBudget: number
+  categories: { category: string; amount: number }[]
+}
+
+export type UpdateBudgetResponse = {
+  message: string
+}
+
+export function updateBudget(input: UpdateBudgetInput) {
+  return request<UpdateBudgetResponse>('/updateBudget', {
+    method: 'PUT',
+    body: JSON.stringify({
+      budget_id: input.budgetId,
+      total_budget: input.totalBudget,
+      categories: input.categories,
+    }),
+  })
+}

@@ -1,6 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { mapFinanceData, type Budget, type Bucket } from '@/data/buckets'
-import { getFinanceData, addTransaction as apiAddTransaction, deleteCategory as apiDeleteCategory, getCategories } from '@/lib/api'
+import {
+  getFinanceData,
+  addTransaction as apiAddTransaction,
+  deleteCategory as apiDeleteCategory,
+  updateCategory as apiUpdateCategory,
+  updateBudget as apiUpdateBudget,
+  getCategories,
+} from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { slugify } from '@/lib/utils'
 
@@ -41,11 +48,11 @@ type BucketsContextValue = {
   buckets: Bucket[]
   getBucket: (id: string) => Bucket | undefined
   addBucket: (input: NewBucketInput) => Bucket
-  updateBucket: (id: string, input: NewBucketInput) => void
+  updateBucket: (id: string, input: NewBucketInput) => Promise<void>
   deleteBucket: (input: DeleteBucketInput) => Promise<void>
   addTransaction: (input: NewTransactionInput) => Promise<void>
   balance: number
-  setBalance: (value: number) => void
+  setBalance: (value: number) => Promise<void>
   allocatedTotal: number
   unallocated: number
   loading: boolean
@@ -142,23 +149,20 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
 
   // Changing the balance rescales every bucket's budget by the same ratio, so
   // each bucket keeps its relative share of the new balance (the split stays intact).
-  const setBalance = (newBalance: number) => {
+  const setBalance = async (newBalance: number) => {
     const previousBalance = activeBudget.balance
     const scale = previousBalance > 0 ? newBalance / previousBalance : 1
-    setBudgets((prev) =>
-      prev.map((b) =>
-        b.id === activeBudget.id
-          ? {
-              ...b,
-              balance: newBalance,
-              buckets:
-                previousBalance > 0
-                  ? b.buckets.map((bucket) => ({ ...bucket, budget: Math.max(0, Math.round(bucket.budget * scale)) }))
-                  : b.buckets,
-            }
-          : b,
-      ),
-    )
+
+    await apiUpdateBudget({
+      budgetId: activeBudget.id,
+      totalBudget: newBalance,
+      categories: activeBudget.buckets.map((bucket) => ({
+        category: bucket.name,
+        amount: previousBalance > 0 ? Math.max(0, Math.round(bucket.budget * scale)) : bucket.budget,
+      })),
+    })
+
+    refresh()
   }
 
   const addBucket = (input: NewBucketInput) => {
@@ -181,30 +185,40 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
     return newBucket
   }
 
-  const updateBucket = (id: string, input: NewBucketInput) => {
-    setBudgets((prev) =>
-      prev.map((b) => {
-        if (b.id !== activeBudget.id) return b
-        const otherAllocated = b.buckets.filter((x) => x.id !== id).reduce((sum, x) => sum + x.budget, 0)
-        const available = b.balance - otherAllocated
-        return {
-          ...b,
-          buckets: b.buckets.map((x) =>
-            x.id === id
-              ? {
-                  ...x,
-                  name: input.name,
-                  subtitle: input.subtitle,
-                  icon: input.icon,
-                  iconBg: input.iconBg,
-                  budget: Math.min(Math.max(0, input.budget), Math.max(0, available)),
-                  spent: input.spent,
-                }
-              : x,
-          ),
-        }
-      }),
-    )
+  const updateBucket = async (id: string, input: NewBucketInput) => {
+    const bucket = activeBudget.buckets.find((b) => b.id === id)
+    if (!bucket) return
+
+    const otherAllocated = activeBudget.buckets.filter((x) => x.id !== id).reduce((sum, x) => sum + x.budget, 0)
+    const available = activeBudget.balance - otherAllocated
+    const amount = Math.min(Math.max(0, input.budget), Math.max(0, available))
+
+    // Renaming requires a user_categories row: /updateCategory cascades the
+    // rename onto existing transactions server-side. Many buckets don't have
+    // one (db_add_transaction/db_create_budget insert straight into `budgets`
+    // without ever creating a user_categories row) — renaming those would
+    // orphan their transactions, so we refuse rather than silently no-op.
+    if (input.name !== bucket.name) {
+      const { categories } = await getCategories()
+      const match = categories.find((c) => c.name === bucket.name)
+      if (!match) {
+        throw new Error(`"${bucket.name}" can't be renamed — it has no matching category record on the backend.`)
+      }
+      await apiUpdateCategory({ categoryId: match.id, name: input.name, color: input.iconBg })
+    }
+
+    // /updateBudget replaces the whole category list for the budget, so we
+    // resend every bucket's amount, substituting the (possibly renamed) one.
+    await apiUpdateBudget({
+      budgetId: activeBudget.id,
+      totalBudget: activeBudget.balance,
+      categories: activeBudget.buckets.map((x) => ({
+        category: x.id === id ? input.name : x.name,
+        amount: x.id === id ? amount : x.budget,
+      })),
+    })
+
+    refresh()
   }
 
   const deleteBucket = async (input: DeleteBucketInput) => {
@@ -213,9 +227,13 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
 
     // /deleteCategory/{id} keys off the user's category catalog (user_categories.id),
     // which /get_finance_data never returns — so it has to be looked up by name first.
+    // Buckets created via addTransaction/createBudget never get a user_categories
+    // row, so this lookup can legitimately fail — surface that instead of no-op'ing.
     const { categories } = await getCategories()
     const match = categories.find((c) => c.name === bucket.name)
-    if (!match) return
+    if (!match) {
+      throw new Error(`"${bucket.name}" can't be deleted — it has no matching category record on the backend.`)
+    }
 
     await apiDeleteCategory({ categoryId: match.id, budgetId: activeBudget.id })
 

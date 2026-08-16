@@ -25,7 +25,7 @@ const actions = [
 
 export function Dashboard() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const {
     budgets,
     activeBudget,
@@ -44,6 +44,16 @@ export function Dashboard() {
   const [createOpen, setCreateOpen] = useState(false)
   const [balanceOpen, setBalanceOpen] = useState(false)
   const [newBudgetOpen, setNewBudgetOpen] = useState(false)
+  const [balanceError, setBalanceError] = useState<string | null>(null)
+
+  const handleSaveBalance = async (value: number) => {
+    setBalanceError(null)
+    try {
+      await setBalance(value)
+    } catch (err) {
+      setBalanceError(err instanceof Error ? err.message : 'Failed to update balance')
+    }
+  }
 
   const allocatedPercent = balance > 0 ? Math.min(100, Math.round((allocatedTotal / balance) * 100)) : 0
 
@@ -65,7 +75,7 @@ export function Dashboard() {
   return (
     <div className="flex flex-col gap-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Welcome, Salung</h1>
+        <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Welcome, {user?.username}</h1>
         <div className="flex items-center gap-1 text-neutral-500">
           <button
             aria-label="Settings"
@@ -155,7 +165,8 @@ export function Dashboard() {
         </div>
       </section>
 
-      <BalanceDialog open={balanceOpen} onOpenChange={setBalanceOpen} currentBalance={balance} onSave={setBalance} />
+      {balanceError && <p className="text-sm text-red-600">{balanceError}</p>}
+      <BalanceDialog open={balanceOpen} onOpenChange={setBalanceOpen} currentBalance={balance} onSave={handleSaveBalance} />
       <NewBudgetDialog open={newBudgetOpen} onOpenChange={setNewBudgetOpen} onCreate={addBudget} />
 
       <section className="flex flex-col gap-4">

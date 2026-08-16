@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, MoreVertical, ArrowUp, ArrowDown, Receipt, Plus, Pencil, Trash2 } from 'lucide-react'
 import { Bar, BarChart, LabelList, ResponsiveContainer, XAxis } from 'recharts'
-import { useBuckets } from '@/context/BucketsContext'
+import { useBuckets, type NewBucketInput } from '@/context/BucketsContext'
 import { Progress } from '@/components/ui/progress'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ export function BucketDetail() {
   const [editOpen, setEditOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [updateError, setUpdateError] = useState<string | null>(null)
 
   if (!bucket) {
     return (
@@ -41,21 +42,30 @@ export function BucketDetail() {
   const progressColor = percent >= 100 ? 'bg-red-500' : percent >= 80 ? 'bg-orange-500' : 'bg-emerald-500'
   const isIncrease = bucket.changePercent >= 0
 
+  const handleUpdate = async (input: NewBucketInput) => {
+    setUpdateError(null)
+    try {
+      await updateBucket(bucket.id, input)
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : 'Failed to update bucket')
+    }
+  }
+
   const handleDelete = async () => {
     setDeleteError(null)
     setDeleting(true)
     try {
       await deleteBucket({ bucketId: bucket.id })
       navigate('/')
-    } catch {
-      setDeleteError('Failed to delete bucket')
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete bucket')
       setDeleting(false)
     }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+      {(deleteError || updateError) && <p className="text-sm text-red-600">{deleteError ?? updateError}</p>}
       <header className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
@@ -92,7 +102,7 @@ export function BucketDetail() {
           open={editOpen}
           onOpenChange={setEditOpen}
           maxAmount={Math.max(0, unallocated) + bucket.budget}
-          onSubmit={(input) => updateBucket(bucket.id, input)}
+          onSubmit={handleUpdate}
         />
       </header>
 
