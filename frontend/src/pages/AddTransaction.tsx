@@ -25,14 +25,24 @@ export function AddTransaction() {
   const [bucketId, setBucketId] = useState(preselected && buckets.some((b) => b.id === preselected) ? preselected : '')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(nowForInput)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const amountValue = Number(amount)
-  const canSubmit = amountValue > 0 && bucketId !== '' && description.trim() !== ''
+  const canSubmit = amountValue > 0 && bucketId !== '' && description.trim() !== '' && !submitting
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return
-    addTransaction({ bucketId, amount: amountValue, description: description.trim(), date })
-    navigate(`/buckets/${bucketId}`)
+    setError(null)
+    setSubmitting(true)
+    try {
+      await addTransaction({ bucketId, amount: amountValue, description: description.trim(), date })
+      navigate(`/buckets/${bucketId}`)
+    } catch {
+      setError('Failed to add transaction')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -98,8 +108,10 @@ export function AddTransaction() {
         </div>
       </Card>
 
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
       <Button onClick={handleSubmit} disabled={!canSubmit} className="rounded-full py-3.5 text-sm font-semibold">
-        Add transaction
+        {submitting ? 'Adding…' : 'Add transaction'}
       </Button>
     </div>
   )

@@ -125,7 +125,6 @@ export function Dashboard() {
                     <span className="w-4" />
                   )}
                   {b.name}
-                  <span className="ml-auto text-neutral-400">${b.balance.toLocaleString()}</span>
                 </DropdownMenuItem>
               ))}
               <DropdownMenuItem onClick={() => setNewBudgetOpen(true)}>

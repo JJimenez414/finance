@@ -70,3 +70,29 @@ export type FinanceData = {
 export function getFinanceData() {
   return request<FinanceData>('/get_finance_data')
 }
+
+export type AddTransactionInput = {
+  date: string
+  category: string
+  amount: number
+  description: string
+  budgetId: string
+}
+
+export type AddTransactionResponse = {
+  message: string
+  id: number | string
+}
+
+export function addTransaction(input: AddTransactionInput) {
+  return request<AddTransactionResponse>('/addTransaction', {
+    method: 'POST',
+    body: JSON.stringify({
+      date: input.date,
+      category: input.category,
+      amount: input.amount,
+      description: input.description,
+      budget_id: input.budgetId,
+    }),
+  })
+}

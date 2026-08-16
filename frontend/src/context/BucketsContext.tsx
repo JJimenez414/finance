@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { mapFinanceData, type Budget, type Bucket } from '@/data/buckets'
-import { getFinanceData } from '@/lib/api'
+import { getFinanceData, addTransaction as apiAddTransaction } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { slugify } from '@/lib/utils'
 
@@ -39,7 +39,7 @@ type BucketsContextValue = {
   addBucket: (input: NewBucketInput) => Bucket
   updateBucket: (id: string, input: NewBucketInput) => void
   deleteBucket: (id: string) => void
-  addTransaction: (input: NewTransactionInput) => void
+  addTransaction: (input: NewTransactionInput) => Promise<void>
   balance: number
   setBalance: (value: number) => void
   allocatedTotal: number
@@ -209,38 +209,19 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  const addTransaction = (input: NewTransactionInput) => {
-    const parsedDate = new Date(input.date)
-    const time = Number.isNaN(parsedDate.getTime())
-      ? input.date
-      : parsedDate.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  const addTransaction = async (input: NewTransactionInput) => {
+    const bucket = activeBudget.buckets.find((b) => b.id === input.bucketId)
+    if (!bucket) return
 
-    setBudgets((prev) =>
-      prev.map((b) => {
-        if (b.id !== activeBudget.id) return b
-        return {
-          ...b,
-          buckets: b.buckets.map((x) =>
-            x.id === input.bucketId
-              ? {
-                  ...x,
-                  spent: x.spent + input.amount,
-                  transactions: [
-                    {
-                      id: `txn-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-                      title: input.description || 'Transaction',
-                      subtitle: x.name,
-                      amount: input.amount,
-                      time,
-                    },
-                    ...x.transactions,
-                  ],
-                }
-              : x,
-          ),
-        }
-      }),
-    )
+    await apiAddTransaction({
+      date: input.date,
+      category: bucket.name,
+      amount: input.amount,
+      description: input.description,
+      budgetId: activeBudget.id,
+    })
+
+    refresh()
   }
 
   return (
