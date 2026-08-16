@@ -21,10 +21,11 @@ jobs:
           source venv/bin/activate
           pip install -r requirements.txt
 
-      - name: Install frontend dependencies
+      - name: Build frontend
         run: |
           cd /home/jjimenez/Documents/finance/frontend
           npm install
+          npm run build
 
       - name: Restart services
         run: |
