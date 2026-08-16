@@ -13,15 +13,25 @@ export function Login() {
   const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  const canSubmit = email.trim() !== '' && password.trim() !== ''
+  const canSubmit = email.trim() !== '' && password.trim() !== '' && !submitting
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
-    login(email.trim())
-    const redirectTo = (location.state as { from?: string } | null)?.from ?? '/'
-    navigate(redirectTo, { replace: true })
+    setError(null)
+    setSubmitting(true)
+    try {
+      await login(email.trim(), password)
+      const redirectTo = (location.state as { from?: string } | null)?.from ?? '/'
+      navigate(redirectTo, { replace: true })
+    } catch {
+      setError('Invalid username or password')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -63,8 +73,10 @@ export function Login() {
               />
             </div>
 
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
             <Button type="submit" disabled={!canSubmit} className="mt-1 w-full">
-              Log in
+              {submitting ? 'Logging in…' : 'Log in'}
             </Button>
           </form>
         </Card>
