@@ -26,13 +26,41 @@ const actions = [
 export function Dashboard() {
   const navigate = useNavigate()
   const { logout } = useAuth()
-  const { budgets, activeBudget, switchBudget, addBudget, buckets, addBucket, balance, setBalance, allocatedTotal, unallocated } =
-    useBuckets()
+  const {
+    budgets,
+    activeBudget,
+    switchBudget,
+    addBudget,
+    buckets,
+    addBucket,
+    balance,
+    setBalance,
+    allocatedTotal,
+    unallocated,
+    loading,
+    error,
+    refresh,
+  } = useBuckets()
   const [createOpen, setCreateOpen] = useState(false)
   const [balanceOpen, setBalanceOpen] = useState(false)
   const [newBudgetOpen, setNewBudgetOpen] = useState(false)
 
   const allocatedPercent = balance > 0 ? Math.min(100, Math.round((allocatedTotal / balance) * 100)) : 0
+
+  if (loading) {
+    return <div className="flex justify-center py-24 text-sm text-neutral-500">Loading your budgets…</div>
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-24">
+        <p className="text-sm text-red-600">{error}</p>
+        <button onClick={refresh} className="text-sm font-semibold text-neutral-900 underline">
+          Try again
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-8">

@@ -1,3 +1,6 @@
+import type { FinanceData } from '@/lib/api'
+import { slugify } from '@/lib/utils'
+
 export type Transaction = {
   id: string
   title: string
@@ -190,3 +193,53 @@ export const seedBuckets: Bucket[] = [
 ]
 
 export const seedBudgets: Budget[] = [{ id: 'personal', name: 'Personal', balance: 23400, buckets: seedBuckets }]
+
+function formatTransactionTime(dateStr: string): string {
+  const parsed = new Date(dateStr)
+  return Number.isNaN(parsed.getTime())
+    ? dateStr
+    : parsed.toLocaleString(undefined, { month: 'short', day: 'numeric' })
+}
+
+/** Maps the backend's /get_finance_data response onto the UI's Budget/Bucket/Transaction shapes. */
+export function mapFinanceData(data: FinanceData): Budget[] {
+  if (!data) return []
+
+  return Object.entries(data.all_budgets).map(([budgetId, budgetInfo]) => {
+    const categories = data.all_categories[budgetId] ?? []
+    const transactions = data.all_transaction[budgetId] ?? []
+
+    const buckets: Bucket[] = categories.map((cat, index) => {
+      const categoryTransactions = transactions.filter((t) => t.category === cat.category)
+      const spent = categoryTransactions.reduce((sum, t) => sum + t.amount, 0)
+
+      return {
+        id: `${budgetId}-${slugify(cat.category) || `bucket-${index}`}`,
+        name: cat.category,
+        subtitle: '',
+        icon: ICON_OPTIONS[index % ICON_OPTIONS.length],
+        iconBg: ICON_COLOR_OPTIONS[index % ICON_COLOR_OPTIONS.length],
+        budget: cat.amount,
+        spent,
+        changePercent: 0,
+        changeSince: '',
+        monthlyAverage: spent,
+        chart: [],
+        transactions: categoryTransactions.map((t) => ({
+          id: String(t.id),
+          title: t.description || cat.category,
+          subtitle: cat.category,
+          amount: t.amount,
+          time: formatTransactionTime(t.date),
+        })),
+      }
+    })
+
+    return {
+      id: String(budgetId),
+      name: budgetInfo.description,
+      balance: budgetInfo.budget_amount,
+      buckets,
+    }
+  })
+}

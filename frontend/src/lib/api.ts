@@ -42,3 +42,31 @@ export function login(username: string, password: string) {
     body: JSON.stringify({ username, password }),
   })
 }
+
+export type FinanceTransaction = {
+  id: number | string
+  description: string
+  date: string
+  category: string
+  amount: number
+}
+
+export type FinanceBudget = {
+  budget_amount: number
+  description: string
+}
+
+export type FinanceCategory = {
+  category: string
+  amount: number
+}
+
+export type FinanceData = {
+  all_transaction: Record<string, FinanceTransaction[]>
+  all_budgets: Record<string, FinanceBudget>
+  all_categories: Record<string, FinanceCategory[]>
+} | null
+
+export function getFinanceData() {
+  return request<FinanceData>('/get_finance_data')
+}

@@ -1,8 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { seedBudgets, type Budget, type Bucket } from '@/data/buckets'
+import { mapFinanceData, type Budget, type Bucket } from '@/data/buckets'
+import { getFinanceData } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
+import { slugify } from '@/lib/utils'
 
-const STORAGE_KEY = 'salung.budgets.v2'
 const ACTIVE_BUDGET_KEY = 'salung.activeBudgetId'
+
+const EMPTY_BUDGET: Budget = { id: 'empty', name: 'No budgets yet', balance: 0, buckets: [] }
 
 export type NewBucketInput = {
   name: string
@@ -40,31 +44,15 @@ type BucketsContextValue = {
   setBalance: (value: number) => void
   allocatedTotal: number
   unallocated: number
+  loading: boolean
+  error: string | null
+  refresh: () => void
 }
 
 const BucketsContext = createContext<BucketsContextValue | null>(null)
 
-function loadBudgets(): Budget[] {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return seedBudgets
-  try {
-    const parsed = JSON.parse(raw) as Budget[]
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : seedBudgets
-  } catch {
-    return seedBudgets
-  }
-}
-
-function loadActiveBudgetId(fallback: string): string {
-  return localStorage.getItem(ACTIVE_BUDGET_KEY) ?? fallback
-}
-
-function slugify(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
+function loadActiveBudgetId(): string | null {
+  return localStorage.getItem(ACTIVE_BUDGET_KEY)
 }
 
 function makeUniqueId(name: string, existing: { id: string }[], fallback: string) {
@@ -79,18 +67,51 @@ function makeUniqueId(name: string, existing: { id: string }[], fallback: string
 }
 
 export function BucketsProvider({ children }: { children: ReactNode }) {
-  const [budgets, setBudgets] = useState<Budget[]>(loadBudgets)
-  const [activeBudgetId, setActiveBudgetId] = useState<string>(() => loadActiveBudgetId(loadBudgets()[0].id))
+  const { isAuthenticated } = useAuth()
+  const [budgets, setBudgets] = useState<Budget[]>([])
+  const [activeBudgetId, setActiveBudgetId] = useState<string | null>(loadActiveBudgetId)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshToken, setRefreshToken] = useState(0)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(budgets))
-  }, [budgets])
+    if (!isAuthenticated) {
+      setBudgets([])
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    getFinanceData()
+      .then((data) => {
+        if (cancelled) return
+        const mapped = mapFinanceData(data)
+        setBudgets(mapped)
+        setActiveBudgetId((prev) => (prev && mapped.some((b) => b.id === prev) ? prev : (mapped[0]?.id ?? null)))
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : 'Failed to load finance data')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, refreshToken])
 
   useEffect(() => {
-    localStorage.setItem(ACTIVE_BUDGET_KEY, activeBudgetId)
+    if (activeBudgetId) localStorage.setItem(ACTIVE_BUDGET_KEY, activeBudgetId)
   }, [activeBudgetId])
 
-  const activeBudget = budgets.find((b) => b.id === activeBudgetId) ?? budgets[0]
+  const refresh = () => setRefreshToken((n) => n + 1)
+
+  const activeBudget = budgets.find((b) => b.id === activeBudgetId) ?? budgets[0] ?? EMPTY_BUDGET
 
   const switchBudget = (id: string) => {
     if (budgets.some((b) => b.id === id)) setActiveBudgetId(id)
@@ -240,6 +261,9 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
         setBalance,
         allocatedTotal,
         unallocated,
+        loading,
+        error,
+        refresh,
       }}
     >
       {children}
