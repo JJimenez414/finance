@@ -96,3 +96,33 @@ export function addTransaction(input: AddTransactionInput) {
     }),
   })
 }
+
+export type UserCategory = {
+  id: number
+  name: string
+  color: string
+}
+
+export type GetCategoriesResponse = {
+  categories: UserCategory[]
+}
+
+export function getCategories() {
+  return request<GetCategoriesResponse>('/getCategories')
+}
+
+export type DeleteCategoryInput = {
+  categoryId: number
+  budgetId: string
+}
+
+export type DeleteCategoryResponse = {
+  message: string
+}
+
+export function deleteCategory(input: DeleteCategoryInput) {
+  return request<DeleteCategoryResponse>(`/deleteCategory/${input.categoryId}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ currentBudgetID: input.budgetId }),
+  })
+}

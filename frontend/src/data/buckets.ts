@@ -209,12 +209,23 @@ export function mapFinanceData(data: FinanceData): Budget[] {
     const categories = data.all_categories[budgetId] ?? []
     const transactions = data.all_transaction[budgetId] ?? []
 
+    const usedIds = new Set<string>()
+
     const buckets: Bucket[] = categories.map((cat, index) => {
       const categoryTransactions = transactions.filter((t) => t.category === cat.category)
       const spent = categoryTransactions.reduce((sum, t) => sum + t.amount, 0)
 
+      const base = `${budgetId}-${slugify(cat.category) || `bucket-${index}`}`
+      let id = base
+      let suffix = 2
+      while (usedIds.has(id)) {
+        id = `${base}-${suffix}`
+        suffix += 1
+      }
+      usedIds.add(id)
+
       return {
-        id: `${budgetId}-${slugify(cat.category) || `bucket-${index}`}`,
+        id,
         name: cat.category,
         subtitle: '',
         icon: ICON_OPTIONS[index % ICON_OPTIONS.length],

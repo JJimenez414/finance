@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { mapFinanceData, type Budget, type Bucket } from '@/data/buckets'
-import { getFinanceData, addTransaction as apiAddTransaction } from '@/lib/api'
+import { getFinanceData, addTransaction as apiAddTransaction, deleteCategory as apiDeleteCategory, getCategories } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { slugify } from '@/lib/utils'
 
@@ -25,6 +25,10 @@ export type NewTransactionInput = {
   date: string
 }
 
+export type DeleteBucketInput = {
+  bucketId: string
+}
+
 type BucketsContextValue = {
   // Budgets (a budget is a balance split across buckets).
   budgets: Budget[]
@@ -38,7 +42,7 @@ type BucketsContextValue = {
   getBucket: (id: string) => Bucket | undefined
   addBucket: (input: NewBucketInput) => Bucket
   updateBucket: (id: string, input: NewBucketInput) => void
-  deleteBucket: (id: string) => void
+  deleteBucket: (input: DeleteBucketInput) => Promise<void>
   addTransaction: (input: NewTransactionInput) => Promise<void>
   balance: number
   setBalance: (value: number) => void
@@ -203,10 +207,19 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  const deleteBucket = (id: string) => {
-    setBudgets((prev) =>
-      prev.map((b) => (b.id === activeBudget.id ? { ...b, buckets: b.buckets.filter((x) => x.id !== id) } : b)),
-    )
+  const deleteBucket = async (input: DeleteBucketInput) => {
+    const bucket = activeBudget.buckets.find((b) => b.id === input.bucketId)
+    if (!bucket) return
+
+    // /deleteCategory/{id} keys off the user's category catalog (user_categories.id),
+    // which /get_finance_data never returns — so it has to be looked up by name first.
+    const { categories } = await getCategories()
+    const match = categories.find((c) => c.name === bucket.name)
+    if (!match) return
+
+    await apiDeleteCategory({ categoryId: match.id, budgetId: activeBudget.id })
+
+    refresh()
   }
 
   const addTransaction = async (input: NewTransactionInput) => {

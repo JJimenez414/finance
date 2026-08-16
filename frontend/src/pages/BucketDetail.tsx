@@ -22,6 +22,8 @@ export function BucketDetail() {
   const { getBucket, updateBucket, deleteBucket, unallocated } = useBuckets()
   const bucket = getBucket(id ?? '')
   const [editOpen, setEditOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   if (!bucket) {
     return (
@@ -39,13 +41,21 @@ export function BucketDetail() {
   const progressColor = percent >= 100 ? 'bg-red-500' : percent >= 80 ? 'bg-orange-500' : 'bg-emerald-500'
   const isIncrease = bucket.changePercent >= 0
 
-  const handleDelete = () => {
-    deleteBucket(bucket.id)
-    navigate('/')
+  const handleDelete = async () => {
+    setDeleteError(null)
+    setDeleting(true)
+    try {
+      await deleteBucket({ bucketId: bucket.id })
+      navigate('/')
+    } catch {
+      setDeleteError('Failed to delete bucket')
+      setDeleting(false)
+    }
   }
 
   return (
     <div className="flex flex-col gap-6">
+      {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
       <header className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
@@ -71,9 +81,9 @@ export function BucketDetail() {
               <Pencil className="h-4 w-4" />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onClick={handleDelete}>
+            <DropdownMenuItem variant="destructive" disabled={deleting} onClick={handleDelete}>
               <Trash2 className="h-4 w-4" />
-              Delete
+              {deleting ? 'Deleting…' : 'Delete'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
