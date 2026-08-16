@@ -111,6 +111,31 @@ export function getCategories() {
   return request<GetCategoriesResponse>('/getCategories')
 }
 
+export type CreateCategoryInput = {
+  name: string
+  color: string
+  amount: number
+  budgetId: string
+}
+
+export type CreateCategoryResponse = {
+  id: number
+  name: string
+  color: string
+}
+
+export function createCategory(input: CreateCategoryInput) {
+  return request<CreateCategoryResponse>('/createCategory', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: input.name,
+      color: input.color,
+      amount: input.amount,
+      currentBudgetID: input.budgetId,
+    }),
+  })
+}
+
 export type DeleteCategoryInput = {
   categoryId: number
   budgetId: string
@@ -163,4 +188,33 @@ export function updateBudget(input: UpdateBudgetInput) {
       categories: input.categories,
     }),
   })
+}
+
+export type CreateBudgetInput = {
+  totalBudget: number
+  description: string
+}
+
+export type CreateBudgetResponse = {
+  message: string
+  id: number
+}
+
+export function createBudget(input: CreateBudgetInput) {
+  return request<CreateBudgetResponse>('/createBudget', {
+    method: 'POST',
+    body: JSON.stringify({
+      total_budget: input.totalBudget,
+      description: input.description,
+      categories: [],
+    }),
+  })
+}
+
+export type GetTransactionsResponse = {
+  transactions: FinanceTransaction[]
+}
+
+export function getTransactions(budgetId: string) {
+  return request<GetTransactionsResponse>(`/getTransactions?budget_id=${encodeURIComponent(budgetId)}`)
 }

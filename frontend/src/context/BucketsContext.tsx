@@ -6,10 +6,11 @@ import {
   deleteCategory as apiDeleteCategory,
   updateCategory as apiUpdateCategory,
   updateBudget as apiUpdateBudget,
+  createBudget as apiCreateBudget,
+  createCategory as apiCreateCategory,
   getCategories,
 } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
-import { slugify } from '@/lib/utils'
 
 const ACTIVE_BUDGET_KEY = 'salung.activeBudgetId'
 
@@ -41,13 +42,13 @@ type BucketsContextValue = {
   budgets: Budget[]
   activeBudget: Budget
   switchBudget: (id: string) => void
-  addBudget: (name: string) => Budget
+  addBudget: (name: string) => Promise<void>
   deleteBudget: (id: string) => void
 
   // Buckets within the active budget.
   buckets: Bucket[]
   getBucket: (id: string) => Bucket | undefined
-  addBucket: (input: NewBucketInput) => Bucket
+  addBucket: (input: NewBucketInput) => Promise<void>
   updateBucket: (id: string, input: NewBucketInput) => Promise<void>
   deleteBucket: (input: DeleteBucketInput) => Promise<void>
   addTransaction: (input: NewTransactionInput) => Promise<void>
@@ -64,17 +65,6 @@ const BucketsContext = createContext<BucketsContextValue | null>(null)
 
 function loadActiveBudgetId(): string | null {
   return localStorage.getItem(ACTIVE_BUDGET_KEY)
-}
-
-function makeUniqueId(name: string, existing: { id: string }[], fallback: string) {
-  const base = slugify(name) || fallback
-  let id = base
-  let suffix = 2
-  while (existing.some((item) => item.id === id)) {
-    id = `${base}-${suffix}`
-    suffix += 1
-  }
-  return id
 }
 
 export function BucketsProvider({ children }: { children: ReactNode }) {
@@ -128,11 +118,10 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
     if (budgets.some((b) => b.id === id)) setActiveBudgetId(id)
   }
 
-  const addBudget = (name: string) => {
-    const newBudget: Budget = { id: makeUniqueId(name, budgets, 'budget'), name, balance: 0, buckets: [] }
-    setBudgets((prev) => [...prev, newBudget])
-    setActiveBudgetId(newBudget.id)
-    return newBudget
+  const addBudget = async (name: string) => {
+    const { id } = await apiCreateBudget({ totalBudget: 0, description: name })
+    setActiveBudgetId(String(id))
+    refresh()
   }
 
   const deleteBudget = (id: string) => {
@@ -165,24 +154,21 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
     refresh()
   }
 
-  const addBucket = (input: NewBucketInput) => {
+  const addBucket = async (input: NewBucketInput) => {
     const available = activeBudget.balance - allocatedTotal
-    const newBucket: Bucket = {
-      id: makeUniqueId(input.name, activeBudget.buckets, 'bucket'),
+    const amount = Math.min(Math.max(0, input.budget), Math.max(0, available))
+
+    // createCategory creates both the user_categories row and the budgets row
+    // together, so (unlike buckets from addTransaction/createBudget) this one
+    // will always be rename/delete-able afterward.
+    await apiCreateCategory({
       name: input.name,
-      subtitle: input.subtitle,
-      icon: input.icon,
-      iconBg: input.iconBg,
-      budget: Math.min(Math.max(0, input.budget), Math.max(0, available)),
-      spent: input.spent,
-      changePercent: 0,
-      changeSince: 'last month',
-      monthlyAverage: input.spent,
-      chart: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month) => ({ month, value: 0 })),
-      transactions: [],
-    }
-    setBudgets((prev) => prev.map((b) => (b.id === activeBudget.id ? { ...b, buckets: [...b.buckets, newBucket] } : b)))
-    return newBucket
+      color: input.iconBg,
+      amount,
+      budgetId: activeBudget.id,
+    })
+
+    refresh()
   }
 
   const updateBucket = async (id: string, input: NewBucketInput) => {

@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { Dashboard } from '@/pages/Dashboard'
 import { BucketDetail } from '@/pages/BucketDetail'
 import { AddTransaction } from '@/pages/AddTransaction'
+import { History } from '@/pages/History'
 import { Login } from '@/pages/Login'
 
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -34,6 +35,7 @@ function AppRoutes() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/buckets/:id" element={<BucketDetail />} />
                 <Route path="/transactions/new" element={<AddTransaction />} />
+                <Route path="/history" element={<History />} />
               </Routes>
             </AppShell>
           </RequireAuth>

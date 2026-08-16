@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileClock, Settings, LogOut, MoreVertical, Pencil, ChevronDown, Check } from 'lucide-react'
-import { useBuckets } from '@/context/BucketsContext'
+import { Plus, FileClock, LogOut, MoreVertical, Pencil, ChevronDown, Check } from 'lucide-react'
+import { useBuckets, type NewBucketInput } from '@/context/BucketsContext'
 import { useAuth } from '@/context/AuthContext'
 import { BucketCard } from '@/components/BucketCard'
 import { BucketFormDialog } from '@/components/BucketFormDialog'
@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 const actions = [
   { label: 'Add transaction', icon: Plus, to: '/transactions/new' },
-  { label: 'History', icon: FileClock, to: null },
+  { label: 'History', icon: FileClock, to: '/history' },
 ]
 
 export function Dashboard() {
@@ -45,6 +45,8 @@ export function Dashboard() {
   const [balanceOpen, setBalanceOpen] = useState(false)
   const [newBudgetOpen, setNewBudgetOpen] = useState(false)
   const [balanceError, setBalanceError] = useState<string | null>(null)
+  const [budgetError, setBudgetError] = useState<string | null>(null)
+  const [bucketError, setBucketError] = useState<string | null>(null)
 
   const handleSaveBalance = async (value: number) => {
     setBalanceError(null)
@@ -52,6 +54,24 @@ export function Dashboard() {
       await setBalance(value)
     } catch (err) {
       setBalanceError(err instanceof Error ? err.message : 'Failed to update balance')
+    }
+  }
+
+  const handleCreateBudget = async (name: string) => {
+    setBudgetError(null)
+    try {
+      await addBudget(name)
+    } catch (err) {
+      setBudgetError(err instanceof Error ? err.message : 'Failed to create budget')
+    }
+  }
+
+  const handleCreateBucket = async (input: NewBucketInput) => {
+    setBucketError(null)
+    try {
+      await addBucket(input)
+    } catch (err) {
+      setBucketError(err instanceof Error ? err.message : 'Failed to create bucket')
     }
   }
 
@@ -77,12 +97,6 @@ export function Dashboard() {
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Welcome, {user?.username}</h1>
         <div className="flex items-center gap-1 text-neutral-500">
-          <button
-            aria-label="Settings"
-            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-neutral-100 hover:text-neutral-900"
-          >
-            <Settings className="h-5 w-5" />
-          </button>
           <button
             aria-label="Log out"
             onClick={() => {
@@ -165,9 +179,11 @@ export function Dashboard() {
         </div>
       </section>
 
-      {balanceError && <p className="text-sm text-red-600">{balanceError}</p>}
+      {(balanceError || budgetError || bucketError) && (
+        <p className="text-sm text-red-600">{balanceError ?? budgetError ?? bucketError}</p>
+      )}
       <BalanceDialog open={balanceOpen} onOpenChange={setBalanceOpen} currentBalance={balance} onSave={handleSaveBalance} />
-      <NewBudgetDialog open={newBudgetOpen} onOpenChange={setNewBudgetOpen} onCreate={addBudget} />
+      <NewBudgetDialog open={newBudgetOpen} onOpenChange={setNewBudgetOpen} onCreate={handleCreateBudget} />
 
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -182,10 +198,7 @@ export function Dashboard() {
             open={createOpen}
             onOpenChange={setCreateOpen}
             maxAmount={Math.max(0, unallocated)}
-            onSubmit={(input) => {
-              const created = addBucket(input)
-              navigate(`/buckets/${created.id}`)
-            }}
+            onSubmit={handleCreateBucket}
           />
         </div>
 

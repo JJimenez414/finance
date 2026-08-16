@@ -1,12 +1,10 @@
 import type { ReactNode } from 'react'
-import { Home, PieChart, FileText, User, Wallet } from 'lucide-react'
+import { Home, PieChart, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { label: 'Home', icon: Home, active: true },
-  { label: 'Analytics', icon: PieChart, active: false },
-  { label: 'Reports', icon: FileText, active: false },
-  { label: 'Profile', icon: User, active: false },
+  { label: 'Analytics', icon: PieChart, active: false }
 ]
 
 export function AppShell({ children }: { children: ReactNode }) {
