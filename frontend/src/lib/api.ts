@@ -218,3 +218,18 @@ export type GetTransactionsResponse = {
 export function getTransactions(budgetId: string) {
   return request<GetTransactionsResponse>(`/getTransactions?budget_id=${encodeURIComponent(budgetId)}`)
 }
+
+
+export type DeleteTransactionResponse = {
+  message: string
+}
+
+export type DeleteTransactionInput = {
+  transactionId: string
+}
+
+export function deleteTransaction(input: DeleteTransactionInput) {
+  return request<DeleteTransactionResponse>(`/deleteTransaction/${input.transactionId}`, {
+    method: 'DELETE',
+  })
+}
