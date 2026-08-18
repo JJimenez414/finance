@@ -114,10 +114,15 @@ async def add_transaction(request: Request, current_username: str = Depends(get_
 		logger.warning("POST /addTransaction — user not found: %s", current_username)
 		raise HTTPException(status_code=404, detail="User not found")
 
+	category = (data.get("category") or "").strip()
+	if not category:
+		logger.warning("POST /addTransaction — missing category for user=%s", current_username)
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="category is required")
+
 	new_id = db_add_transaction(
 		user["id"],
 		data.get("date"),
-		data.get("category"),
+		category,
 		data.get("amount"),
 		data.get("description", ""),
 		data.get("budget_id"),
