@@ -76,6 +76,8 @@ export function Dashboard() {
   }
 
   const allocatedPercent = balance > 0 ? Math.min(100, Math.round((allocatedTotal / balance) * 100)) : 0
+  const totalSpent = buckets.reduce((sum, b) => sum + b.spent, 0)
+  const remainingBalance = balance - totalSpent
 
   if (loading) {
     return <div className="flex justify-center py-24 text-sm text-neutral-500">Loading your budgets…</div>
@@ -158,7 +160,13 @@ export function Dashboard() {
             </DropdownMenuContent>
           </DropdownMenu>
           <p className="mt-4 text-xs text-neutral-400 sm:mt-6">My Balance</p>
-          <p className="text-3xl font-bold sm:text-4xl">${balance.toLocaleString()}</p>
+          <p className="text-center text-3xl font-bold sm:text-left sm:text-4xl">
+            ${remainingBalance.toLocaleString()}
+            <span className="block text-center text-base font-medium text-neutral-400 sm:inline sm:text-left sm:before:content-['_/_']">
+              ${balance.toLocaleString()}
+            </span>
+          </p>
+          <p className="text-xs text-neutral-400">remaining</p>
         </div>
 
         <Separator className="bg-white/10 sm:hidden" />
