@@ -193,6 +193,7 @@ export function updateBudget(input: UpdateBudgetInput) {
 export type CreateBudgetInput = {
   totalBudget: number
   description: string
+  categories?: { category: string; amount: number }[]
 }
 
 export type CreateBudgetResponse = {
@@ -206,7 +207,7 @@ export function createBudget(input: CreateBudgetInput) {
     body: JSON.stringify({
       total_budget: input.totalBudget,
       description: input.description,
-      categories: [],
+      categories: input.categories ?? [],
     }),
   })
 }

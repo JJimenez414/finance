@@ -11,6 +11,9 @@ export type Transaction = {
 
 export const ICON_OPTIONS = ['🏠', '🍔', '🚌', '💳', '🧾', '🎁', '💊', '🎮', '📚', '🐾', '✈️', '💰']
 
+/** Mirrors backend/db.py's _DEFAULT_CATEGORIES — kept in sync manually. */
+export const DEFAULT_CATEGORIES = ['Living', 'Food', 'Transportation', 'Finance', 'Miscellaneous', 'Give']
+
 export const ICON_COLOR_OPTIONS = [
   'bg-blue-100',
   'bg-orange-100',

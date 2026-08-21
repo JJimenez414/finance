@@ -5,7 +5,7 @@ import type { Bucket } from '@/data/buckets'
 import { cn } from '@/lib/utils'
 
 export function BucketCard({ bucket, onClick }: { bucket: Bucket; onClick?: () => void }) {
-  const percent = Math.min(100, Math.round((bucket.spent / bucket.budget) * 100))
+  const percent = bucket.budget > 0 ? Math.min(100, Math.round((bucket.spent / bucket.budget) * 100)) : 0
   const remaining = bucket.budget - bucket.spent
   const indicatorColor = percent >= 100 ? 'bg-red-500' : percent >= 80 ? 'bg-orange-500' : 'bg-emerald-500'
 

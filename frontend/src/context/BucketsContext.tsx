@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { mapFinanceData, type Budget, type Bucket } from '@/data/buckets'
+import { mapFinanceData, DEFAULT_CATEGORIES, type Budget, type Bucket } from '@/data/buckets'
 import {
   getFinanceData,
   addTransaction as apiAddTransaction,
@@ -119,7 +119,11 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
   }
 
   const addBudget = async (name: string) => {
-    const { id } = await apiCreateBudget({ totalBudget: 0, description: name })
+    const { id } = await apiCreateBudget({
+      totalBudget: 0,
+      description: name,
+      categories: DEFAULT_CATEGORIES.map((category) => ({ category, amount: 0 })),
+    })
     setActiveBudgetId(String(id))
     refresh()
   }
