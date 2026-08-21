@@ -333,15 +333,37 @@ def db_create_user_category(user_id, name, color, budget_amount, budget_id) -> i
 	conn = get_db_connection()
 	try:
 		cur = conn.cursor()
+
+		# user_categories is unique per (user_id, name), not per budget — reusing a
+		# name across budgets (e.g. "Living" in every budget) must not fail here.
 		cur.execute(
-			"INSERT INTO user_categories (user_id, name, color) VALUES (%s, %s, %s) RETURNING id;",
-			(user_id, name, color)
+			"SELECT id FROM user_categories WHERE user_id = %s AND name = %s;",
+			(user_id, name)
 		)
-		new_id = cur.fetchone()[0]
+		row = cur.fetchone()
+		if row is not None:
+			new_id = row[0]
+			logger.info("db_create_user_category — existing user_categories row found: user_id=%s name=%s id=%s", user_id, name, new_id)
+		else:
+			cur.execute(
+				"INSERT INTO user_categories (user_id, name, color) VALUES (%s, %s, %s) RETURNING id;",
+				(user_id, name, color)
+			)
+			new_id = cur.fetchone()[0]
+
 		cur.execute(
-			"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, %s, %s);",
-			(user_id, name, budget_amount, budget_id)
+			"SELECT id FROM budgets WHERE user_id = %s AND category = %s AND budget_id = %s;",
+			(user_id, name, budget_id)
 		)
+		existing_budget_row = cur.fetchone()
+		if existing_budget_row is not None:
+			logger.info("db_create_user_category — existing budgets row found: user_id=%s name=%s budget_id=%s id=%s. Not creating bucket.", user_id, name, budget_id, existing_budget_row[0])
+		else:
+			cur.execute(
+				"INSERT INTO budgets (user_id, category, budget_amount, budget_id) VALUES (%s, %s, %s, %s);",
+				(user_id, name, budget_amount, budget_id)
+			)
+
 		conn.commit()
 		return new_id
 	finally:
