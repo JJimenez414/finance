@@ -171,6 +171,13 @@ export function BucketDetail() {
                 <span className="text-sm font-semibold text-neutral-900">-${tx.amount.toFixed(2)}</span>
                 <span className="text-xs text-neutral-400">{tx.time}</span>
               </div>
+              <button
+                aria-label="Delete transaction"
+                onClick={() => handleDeleteTransaction(tx.id)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </Card>
           ))}
         </div>
