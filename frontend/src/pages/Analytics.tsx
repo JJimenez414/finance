@@ -87,7 +87,7 @@ function buildTrend(transactions: TransactionRangeItem[], category: string, time
 
 export function Analytics() {
   const navigate = useNavigate()
-  const { activeBudget, buckets } = useBuckets()
+  const { buckets } = useBuckets()
   const [category, setCategory] = useState('all')
 
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('week')
