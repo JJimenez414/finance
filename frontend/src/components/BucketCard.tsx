@@ -22,14 +22,14 @@ export function BucketCard({ bucket, onClick }: { bucket: Bucket; onClick?: () =
       </div>
 
       <div className="flex items-center justify-between text-sm font-semibold">
-        <span className="text-neutral-900">${bucket.spent.toLocaleString()}</span>
+        <span className="text-neutral-900">${remaining >= 0 ? `${remaining.toLocaleString()} left` : `${Math.abs(remaining).toLocaleString()} over`}</span>
         <span className="text-neutral-400">of ${bucket.budget.toLocaleString()}</span>
       </div>
 
       <Progress value={percent} indicatorClassName={indicatorColor} className="h-1.5 bg-neutral-100" />
 
       <div className="flex items-center justify-between text-xs text-neutral-500">
-        <span>{remaining >= 0 ? `$${remaining.toLocaleString()} left` : `$${Math.abs(remaining).toLocaleString()} over`}</span>
+        <span>${`${bucket.spent.toLocaleString()} total spent`}</span>
         <span className={cn('font-medium', percent >= 100 ? 'text-red-500' : 'text-neutral-700')}>{percent}%</span>
       </div>
     </Card>
