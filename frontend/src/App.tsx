@@ -8,6 +8,7 @@ import { Dashboard } from '@/pages/Dashboard'
 import { BucketDetail } from '@/pages/BucketDetail'
 import { AddTransaction } from '@/pages/AddTransaction'
 import { History } from '@/pages/History'
+import { Analytics } from '@/pages/Analytics'
 import { Login } from '@/pages/Login'
 
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -36,6 +37,7 @@ function AppRoutes() {
                 <Route path="/buckets/:id" element={<BucketDetail />} />
                 <Route path="/transactions/new" element={<AddTransaction />} />
                 <Route path="/history" element={<History />} />
+                <Route path="/analytics" element={<Analytics />} />
               </Routes>
             </AppShell>
           </RequireAuth>
