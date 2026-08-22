@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Home, PieChart, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { label: 'Home', icon: Home, active: true },
-  { label: 'Analytics', icon: PieChart, active: false }
+  { label: 'Home', icon: Home, to: '/' },
+  { label: 'Analytics', icon: PieChart, to: '/analytics' },
 ]
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const location = useLocation()
+
   return (
     <div className="min-h-svh bg-neutral-100">
       <div className="flex w-full">
@@ -20,18 +23,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="text-lg font-bold text-neutral-900">Salung</span>
           </div>
           <nav className="flex flex-col gap-1">
-            {navItems.map(({ label, icon: Icon, active }) => (
-              <div
-                key={label}
-                className={cn(
-                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
-                  active ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-100',
-                )}
-              >
-                <Icon className="h-4.5 w-4.5" strokeWidth={2} />
-                {label}
-              </div>
-            ))}
+            {navItems.map(({ label, icon: Icon, to }) => {
+              const active = location.pathname === to
+              return (
+                <Link
+                  key={label}
+                  to={to}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
+                    active ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-100',
+                  )}
+                >
+                  <Icon className="h-4.5 w-4.5" strokeWidth={2} />
+                  {label}
+                </Link>
+              )
+            })}
           </nav>
         </aside>
 
@@ -44,17 +51,22 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Mobile bottom nav */}
       <div className="fixed inset-x-0 bottom-3 z-20 flex justify-center px-4 md:hidden">
         <div className="flex items-center gap-2 rounded-full bg-neutral-900 px-2 py-2 shadow-lg">
-          {navItems.map(({ label, icon: Icon, active }) => (
-            <div
-              key={label}
-              className={cn(
-                'flex h-11 w-11 items-center justify-center rounded-full',
-                active ? 'bg-white text-neutral-900' : 'text-white/60',
-              )}
-            >
-              <Icon className="h-5 w-5" strokeWidth={2} />
-            </div>
-          ))}
+          {navItems.map(({ label, icon: Icon, to }) => {
+            const active = location.pathname === to
+            return (
+              <Link
+                key={label}
+                to={to}
+                aria-label={label}
+                className={cn(
+                  'flex h-11 w-11 items-center justify-center rounded-full',
+                  active ? 'bg-white text-neutral-900' : 'text-white/60',
+                )}
+              >
+                <Icon className="h-5 w-5" strokeWidth={2} />
+              </Link>
+            )
+          })}
         </div>
       </div>
     </div>

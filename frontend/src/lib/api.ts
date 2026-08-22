@@ -219,3 +219,40 @@ export type GetTransactionsResponse = {
 export function getTransactions(budgetId: string) {
   return request<GetTransactionsResponse>(`/getTransactions?budget_id=${encodeURIComponent(budgetId)}`)
 }
+
+
+export type DeleteTransactionResponse = {
+  message: string
+}
+
+export type DeleteTransactionInput = {
+  transactionId: string
+}
+
+export function deleteTransaction(input: DeleteTransactionInput) {
+  return request<DeleteTransactionResponse>(`/deleteTransaction/${input.transactionId}`, {
+    method: 'DELETE',
+  })
+}
+
+export type TransactionRangeItem = {
+  amount: number
+  category: string
+  description: string
+  date: string
+}
+
+export type CategoryTotal = {
+  total: number
+}
+
+export type GetTransactionsForRangeResponse = {
+  all_tran: TransactionRangeItem[]
+  cur_tran: Record<string, CategoryTotal>
+  trend_tran: Record<string, CategoryTotal>
+}
+
+export function getTransactionsForRange(startDate: string, endDate: string, timeFrame: number) {
+  const params = new URLSearchParams({ start_date: startDate, end_date: endDate, time_frame: String(timeFrame) })
+  return request<GetTransactionsForRangeResponse>(`/get_transactions_for_range?${params.toString()}`)
+}

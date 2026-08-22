@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Receipt } from 'lucide-react'
+import { ChevronLeft, Receipt, Trash2 } from 'lucide-react'
 import { useBuckets } from '@/context/BucketsContext'
-import { getTransactions, type FinanceTransaction } from '@/lib/api'
+import { getTransactions, deleteTransaction as apiDeleteTransaction, type FinanceTransaction } from '@/lib/api'
 import { Card } from '@/components/ui/card'
 
 function formatDate(dateStr: string): string {
@@ -18,6 +18,17 @@ export function History() {
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const handleDeleteTransaction = async (transactionId: FinanceTransaction['id']) => {
+    setError(null)
+    try {
+      await apiDeleteTransaction({ transactionId: String(transactionId) })
+      const res = await getTransactions(activeBudget.id)
+      setTransactions(res.transactions)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete transaction')
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -88,6 +99,13 @@ export function History() {
                 <span className="text-sm font-semibold text-neutral-900">-${tx.amount.toFixed(2)}</span>
                 <span className="text-xs text-neutral-400">{formatDate(tx.date)}</span>
               </div>
+              <button
+                aria-label="Delete transaction"
+                onClick={() => handleDeleteTransaction(tx.id)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </Card>
           ))}
         </div>
