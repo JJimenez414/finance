@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { BucketFormDialog } from '@/components/BucketFormDialog'
+import { deleteTransaction as apiDeleteTransaction } from '@/lib/api'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,12 +20,13 @@ import { cn } from '@/lib/utils'
 export function BucketDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { getBucket, updateBucket, deleteBucket, unallocated } = useBuckets()
+  const { getBucket, updateBucket, deleteBucket, unallocated, refresh } = useBuckets()
   const bucket = getBucket(id ?? '')
   const [editOpen, setEditOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [updateError, setUpdateError] = useState<string | null>(null)
+  const [transactionError, setTransactionError] = useState<string | null>(null)
 
   if (!bucket) {
     return (
@@ -51,6 +53,16 @@ export function BucketDetail() {
     }
   }
 
+  const handleDeleteTransaction = async (transactionId: string) => {
+    setTransactionError(null)
+    try {
+      await apiDeleteTransaction({ transactionId })
+      refresh()
+    } catch (err) {
+      setTransactionError(err instanceof Error ? err.message : 'Failed to delete transaction')
+    }
+  }
+
   const handleDelete = async () => {
     setDeleteError(null)
     setDeleting(true)
@@ -65,7 +77,9 @@ export function BucketDetail() {
 
   return (
     <div className="flex flex-col gap-6">
-      {(deleteError || updateError) && <p className="text-sm text-red-600">{deleteError ?? updateError}</p>}
+      {(deleteError || updateError || transactionError) && (
+        <p className="text-sm text-red-600">{deleteError ?? updateError ?? transactionError}</p>
+      )}
       <header className="flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
@@ -222,6 +236,13 @@ export function BucketDetail() {
                   <span className="text-sm font-semibold text-neutral-900">-${tx.amount.toFixed(2)}</span>
                   <span className="text-xs text-neutral-400">{tx.time}</span>
                 </div>
+                <button
+                  aria-label="Delete transaction"
+                  onClick={() => handleDeleteTransaction(tx.id)}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </Card>
             ))}
           </div>
