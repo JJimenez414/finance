@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { login as apiLogin, getToken, setToken, type User } from '@/lib/api'
+import { login as apiLogin, getToken, setToken, AUTH_EXPIRED_EVENT, type User } from '@/lib/api'
 
 const STORAGE_KEY = 'salung.auth.user'
 
@@ -29,6 +29,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
     else localStorage.removeItem(STORAGE_KEY)
   }, [user])
+
+  useEffect(() => {
+    const handleAuthExpired = () => setUser(null)
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired)
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired)
+  }, [])
 
   const login = async (username: string, password: string) => {
     const res = await apiLogin(username, password)

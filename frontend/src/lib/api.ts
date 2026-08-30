@@ -10,6 +10,8 @@ export function setToken(token: string | null) {
   else localStorage.removeItem(TOKEN_STORAGE_KEY)
 }
 
+export const AUTH_EXPIRED_EVENT = 'salung:auth-expired'
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
   headers.set('Content-Type', 'application/json')
@@ -19,6 +21,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
+    // 401 means the token is missing/expired/invalid — clear it and let AuthContext
+    // know so the app drops back to the login screen instead of retrying forever.
+    if (res.status === 401) {
+      setToken(null)
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
+    }
     throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ''}`)
   }
   return res.json() as Promise<T>
