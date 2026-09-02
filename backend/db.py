@@ -449,3 +449,28 @@ def db_get_transactions_for_range(user_id, start_date, end_date, time_frame):
 		return response
 	finally:
 		return_db_connection(conn)
+
+def db_get_config(user_id):
+		logger.info("db_get_config — Getting configs for user: %s.", user_id)
+
+		conn = get_db_connection()
+
+		try:
+			cur = conn.cursor(cursor_factory=RealDictCursor)
+
+			cur.execute (
+				"SELECT * FROM config WHERE user_id = %s",
+				(user_id,)
+			)
+
+			configs = cur.fetchone()
+
+			if configs:
+				configs.pop('id', None)
+				configs.pop('user_id', None)
+
+			return configs
+		finally:
+			return_db_connection(conn)
+
+

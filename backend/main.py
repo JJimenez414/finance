@@ -23,7 +23,8 @@ from db import (
 	db_create_user_category,
 	db_update_user_category,
 	db_delete_user_category,
-	db_get_transactions_for_range
+	db_get_transactions_for_range,
+	db_get_config
 )
 import uvicorn
 from logger import get_logger
@@ -260,7 +261,9 @@ def get_finance_data(current_username: str = Depends(get_current_user)):
 		raise HTTPException(status_code=404, detail="User not found")
 
 	data = db_get_finance_data(user["id"])
+	configs = db_get_config(user["id"])
 	logger.info("GET /get_finance_data — done")
+	
 	return data
 
 
