@@ -69,14 +69,23 @@ export type FinanceCategory = {
   amount: number
 }
 
+export type UserConfigs = {
+  open_add_tran: boolean
+}
+
 export type FinanceData = {
   all_transaction: Record<string, FinanceTransaction[]>
   all_budgets: Record<string, FinanceBudget>
   all_categories: Record<string, FinanceCategory[]>
 } | null
 
+export type GetFinanceDataResponse = {
+  data: FinanceData
+  configs: UserConfigs 
+}
+
 export function getFinanceData() {
-  return request<FinanceData>('/get_finance_data')
+  return request<GetFinanceDataResponse>('/get_finance_data')
 }
 
 export type AddTransactionInput = {

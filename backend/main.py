@@ -263,8 +263,8 @@ def get_finance_data(current_username: str = Depends(get_current_user)):
 	data = db_get_finance_data(user["id"])
 	configs = db_get_config(user["id"])
 	logger.info("GET /get_finance_data — done")
-	
-	return data
+
+	return {"data": data, "configs": configs}
 
 
 @protected_router.get("/getCategories")
