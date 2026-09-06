@@ -242,6 +242,26 @@ export function createBudget(input: CreateBudgetInput) {
   })
 }
 
+export type CloneBalanceInput = {
+  budgetId: string
+  description?: string
+}
+
+export type CloneBalanceResponse = {
+  message: string
+  id: number
+}
+
+export function cloneBalance(input: CloneBalanceInput) {
+  return request<CloneBalanceResponse>('/clone_balance', {
+    method: 'POST',
+    body: JSON.stringify({
+      budget_id: input.budgetId,
+      description: input.description,
+    }),
+  })
+}
+
 export type GetTransactionsResponse = {
   transactions: FinanceTransaction[]
 }
