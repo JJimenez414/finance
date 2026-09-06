@@ -23,7 +23,10 @@ from db import (
 	db_create_user_category,
 	db_update_user_category,
 	db_delete_user_category,
-	db_get_transactions_for_range
+	db_get_transactions_for_range,
+	db_get_config,
+	db_update_config,
+	db_clone_budget
 )
 import uvicorn
 from logger import get_logger
@@ -261,7 +264,39 @@ def get_finance_data(current_username: str = Depends(get_current_user)):
 
 	data = db_get_finance_data(user["id"])
 	logger.info("GET /get_finance_data — done")
+
 	return data
+
+
+@protected_router.get("/get_config")
+def get_config(current_username: str = Depends(get_current_user)):
+	logger.info("GET /get_config — user=%s", current_username)
+	user = get_user_by_username(current_username)
+	configs = db_get_config(user["id"])
+	logger.info("GET /get_config — done")
+	return configs
+
+@protected_router.put("/update_config")
+async def update_config(request: Request, current_username: str = Depends(get_current_user)):
+	logger.info("GET /update_config — user=%s", current_username)
+	data = await request.json()
+	key = data.get("key")
+	val = data.get("val")
+
+	if not key:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="key is required")
+
+	user = get_user_by_username(current_username)
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	try:
+		updated = db_update_config(user["id"], key, val)
+	except ValueError as exc:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+	logger.info("PUT /update_config — user=%s key=%s val=%s", current_username, key, val)
+	return updated
 
 
 @protected_router.get("/getCategories")
@@ -316,6 +351,29 @@ async def delete_category(category_id: int, request: Request, current_username: 
 		raise HTTPException(status_code=404, detail="Category not found")
 	logger.info("DELETE /deleteCategory/%s — user=%s", category_id, current_username)
 	return {"message": "Category deleted"}
+
+@protected_router.post("/clone_balance")
+async def clone_balance(request: Request, current_username: str = Depends(get_current_user)):
+	data = await request.json()
+	budget_id = data.get("budget_id")
+	description = data.get("description")
+
+	if not budget_id:
+		logger.warning("POST /clone_balance — missing budget_id for user=%s", current_username)
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="budget_id is required")
+
+	user = get_user_by_username(current_username)
+	if user is None:
+		logger.warning("POST /clone_balance — user not found: %s", current_username)
+		raise HTTPException(status_code=404, detail="User not found")
+
+	new_id = db_clone_budget(user["id"], budget_id, description)
+	if new_id is None:
+		logger.warning("POST /clone_balance — budget_id=%s not found for user=%s", budget_id, current_username)
+		raise HTTPException(status_code=404, detail="Budget not found")
+
+	logger.info("POST /clone_balance — user=%s source=%s new_id=%s", current_username, budget_id, new_id)
+	return {"message": "Balance cloned successfully", "id": new_id}
 
 @protected_router.get("/get_transactions_for_range")
 def get_transactions_for_range(start_date: str, end_date:str, time_frame:int, current_username: str = Depends(get_current_user)):

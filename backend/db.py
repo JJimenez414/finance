@@ -288,6 +288,28 @@ def db_get_budget_categories(budget_id, user_id) -> list:
 	finally:
 		return_db_connection(conn)
 
+def db_clone_budget(user_id, source_budget_id, description=None):
+	"""Creates a new budget with the same total_budget and category amounts as
+	source_budget_id — a template copy, not a copy of transaction history."""
+	conn = get_db_connection()
+	try:
+		cur = conn.cursor()
+		cur.execute(
+			"SELECT total_budget, description FROM user_budget WHERE id = %s AND user_id = %s;",
+			(source_budget_id, user_id)
+		)
+		row = cur.fetchone()
+		if row is None:
+			return None
+
+		total_budget, source_description = row
+		new_description = description or f"{source_description} (Copy)"
+	finally:
+		return_db_connection(conn)
+
+	categories = db_get_budget_categories(source_budget_id, user_id)
+	return db_create_budget(user_id, float(total_budget), new_description, categories)
+
 _DEFAULT_CATEGORIES = [
 	{"name": "Living",         "color": "#14b8a6"},
 	{"name": "Food",           "color": "#f59e0b"},
@@ -449,3 +471,45 @@ def db_get_transactions_for_range(user_id, start_date, end_date, time_frame):
 		return response
 	finally:
 		return_db_connection(conn)
+
+def db_get_config(user_id):
+		logger.info("db_get_config — Getting configs for user: %s.", user_id)
+		conn = get_db_connection()
+		try:
+			cur = conn.cursor(cursor_factory=RealDictCursor)
+			cur.execute (
+				"SELECT * FROM config WHERE user_id = %s",
+				(user_id,)
+			)
+			configs = cur.fetchone()
+			if configs:
+				configs.pop('id', None)
+				configs.pop('user_id', None)
+			return configs
+		finally:
+			return_db_connection(conn)
+
+_CONFIG_COLUMNS = {"open_add_tran"}
+
+def db_update_config(user_id, key, val):
+      if key not in _CONFIG_COLUMNS:
+              raise ValueError(f"Unknown config key: {key}")
+
+      conn = get_db_connection()
+      try:
+              cur = conn.cursor(cursor_factory=RealDictCursor)
+              cur.execute(
+                      f"UPDATE config SET {key} = %s WHERE user_id = %s RETURNING *;",
+                      (val, user_id)
+              )
+              updated = cur.fetchone()
+              if updated:
+                      updated.pop('id', None)
+                      updated.pop('user_id', None)
+              conn.commit()
+              logger.info("db_update_config — updated %s=%s for user: %s", key, val, user_id)
+              return updated
+      finally:
+              return_db_connection(conn)
+
+
