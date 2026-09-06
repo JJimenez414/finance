@@ -4,11 +4,13 @@ import { AppShell } from '@/components/AppShell'
 import { ScrollToTop } from '@/components/ScrollToTop'
 import { BucketsProvider } from '@/context/BucketsContext'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { ConfigProvider } from '@/context/ConfigContext'
 import { Dashboard } from '@/pages/Dashboard'
 import { BucketDetail } from '@/pages/BucketDetail'
 import { AddTransaction } from '@/pages/AddTransaction'
 import { History } from '@/pages/History'
 import { Analytics } from '@/pages/Analytics'
+import { Settings } from '@/pages/Settings'
 import { Login } from '@/pages/Login'
 
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -38,6 +40,7 @@ function AppRoutes() {
                 <Route path="/transactions/new" element={<AddTransaction />} />
                 <Route path="/history" element={<History />} />
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/settings" element={<Settings />} />
               </Routes>
             </AppShell>
           </RequireAuth>
@@ -50,12 +53,14 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BucketsProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <AppRoutes />
-        </BrowserRouter>
-      </BucketsProvider>
+      <ConfigProvider>
+        <BucketsProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <AppRoutes />
+          </BrowserRouter>
+        </BucketsProvider>
+      </ConfigProvider>
     </AuthProvider>
   )
 }

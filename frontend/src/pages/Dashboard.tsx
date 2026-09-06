@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileClock, LogOut, MoreVertical, Pencil, Copy, ChevronDown, Check } from 'lucide-react'
+import { Plus, FileClock, LogOut, Settings as SettingsIcon, MoreVertical, Pencil, Copy, ChevronDown, Check } from 'lucide-react'
 import { useBuckets, type NewBucketInput } from '@/context/BucketsContext'
 import { useAuth } from '@/context/AuthContext'
+import { useConfig } from '@/context/ConfigContext'
 import { BucketCard } from '@/components/BucketCard'
 import { BucketFormDialog } from '@/components/BucketFormDialog'
 import { BalanceDialog } from '@/components/BalanceDialog'
 import { NewBudgetDialog } from '@/components/NewBudgetDialog'
+import { AddTransactionDialog } from '@/components/AddTransactionDialog'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
@@ -50,6 +52,18 @@ export function Dashboard() {
   const [bucketError, setBucketError] = useState<string | null>(null)
   const [cloneError, setCloneError] = useState<string | null>(null)
   const [cloning, setCloning] = useState(false)
+
+  const { config } = useConfig()
+  const [promptOpen, setPromptOpen] = useState(false)
+
+  // Prompt once per browser session, not on every navigation back to "/".
+  useEffect(() => {
+    if (!config?.open_add_tran) return
+    if (sessionStorage.getItem('salung.promptedAddTransaction')) return
+
+    sessionStorage.setItem('salung.promptedAddTransaction', '1')
+    setPromptOpen(true)
+  }, [config])
 
   const handleSaveBalance = async (value: number) => {
     setBalanceError(null)
@@ -114,6 +128,13 @@ export function Dashboard() {
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Welcome, {user?.username}</h1>
         <div className="flex items-center gap-1 text-neutral-500">
+          <button
+            aria-label="Settings"
+            onClick={() => navigate('/settings')}
+            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-neutral-100 hover:text-neutral-900"
+          >
+            <SettingsIcon className="h-5 w-5" />
+          </button>
           <button
             aria-label="Log out"
             onClick={() => {
@@ -211,6 +232,7 @@ export function Dashboard() {
       )}
       <BalanceDialog open={balanceOpen} onOpenChange={setBalanceOpen} currentBalance={balance} onSave={handleSaveBalance} />
       <NewBudgetDialog open={newBudgetOpen} onOpenChange={setNewBudgetOpen} onCreate={handleCreateBudget} />
+      <AddTransactionDialog open={promptOpen} onOpenChange={setPromptOpen} />
 
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">

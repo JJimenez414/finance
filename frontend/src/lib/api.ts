@@ -69,14 +69,36 @@ export type FinanceCategory = {
   amount: number
 }
 
+
 export type FinanceData = {
   all_transaction: Record<string, FinanceTransaction[]>
   all_budgets: Record<string, FinanceBudget>
   all_categories: Record<string, FinanceCategory[]>
 } | null
 
+
 export function getFinanceData() {
   return request<FinanceData>('/get_finance_data')
+}
+
+export type UserConfigs = {
+  open_add_tran: boolean
+}
+
+export function getConfigData() {
+  return request<UserConfigs>('/get_config')
+}
+
+export type UpdateConfigInput = {
+  key: keyof UserConfigs
+  val: boolean
+}
+
+export function updateConfig(input: UpdateConfigInput) {
+  return request<UserConfigs>('/update_config', {
+    method: 'PUT',
+    body: JSON.stringify({ key: input.key, val: input.val }),
+  })
 }
 
 export type AddTransactionInput = {
