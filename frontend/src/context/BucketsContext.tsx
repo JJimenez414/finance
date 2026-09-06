@@ -44,7 +44,7 @@ type BucketsContextValue = {
   activeBudget: Budget
   switchBudget: (id: string) => void
   addBudget: (name: string) => Promise<void>
-  cloneBudget: (id: string) => Promise<void>
+  cloneBudget: (id: string, name: string) => Promise<void>
   deleteBudget: (id: string) => void
 
   // Buckets within the active budget.
@@ -130,8 +130,8 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
     refresh()
   }
 
-  const cloneBudget = async (id: string) => {
-    const { id: newId } = await apiCloneBalance({ budgetId: id })
+  const cloneBudget = async (id: string, name: string) => {
+    const { id: newId } = await apiCloneBalance({ budgetId: id, description: name })
     setActiveBudgetId(String(newId))
     refresh()
   }
