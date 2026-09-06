@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { getFinanceData, type UserConfigs } from "@/lib/api";
+import { getConfigData, updateConfig as apiUpdateConfig, type UserConfigs } from "@/lib/api";
 import {useAuth} from '@/context/AuthContext'
 
 type ConfigContextValue = {
@@ -7,6 +7,7 @@ type ConfigContextValue = {
   loading: boolean
   error: string | null
   refresh: () => void
+  updateConfig: (key: keyof UserConfigs, val: boolean) => Promise<void>
 }
 
 const ConfigContext = createContext<ConfigContextValue | null>(null)
@@ -29,10 +30,10 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     setError(null)
 
-    getFinanceData()
+    getConfigData()
       .then((res) => {
         if (cancelled) return
-        setConfig(res.configs ?? null)
+        setConfig(res)
       })
       .catch((err) => {
         if (cancelled) return
@@ -49,8 +50,13 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
 
   const refresh = () => setRefreshToken((n) => n + 1)
 
+  const updateConfig = async (key: keyof UserConfigs, val: boolean) => {
+    const updated = await apiUpdateConfig({ key, val })
+    setConfig(updated)
+  }
+
   return (
-    <ConfigContext.Provider value={{ config, loading, error, refresh }}>
+    <ConfigContext.Provider value={{ config, loading, error, refresh, updateConfig }}>
       {children}
     </ConfigContext.Provider>
   )

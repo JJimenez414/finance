@@ -24,7 +24,8 @@ from db import (
 	db_update_user_category,
 	db_delete_user_category,
 	db_get_transactions_for_range,
-	db_get_config
+	db_get_config,
+	db_update_config
 )
 import uvicorn
 from logger import get_logger
@@ -261,10 +262,40 @@ def get_finance_data(current_username: str = Depends(get_current_user)):
 		raise HTTPException(status_code=404, detail="User not found")
 
 	data = db_get_finance_data(user["id"])
-	configs = db_get_config(user["id"])
 	logger.info("GET /get_finance_data — done")
 
-	return {"data": data, "configs": configs}
+	return data
+
+
+@protected_router.get("/get_config")
+def get_config(current_username: str = Depends(get_current_user)):
+	logger.info("GET /get_config — user=%s", current_username)
+	user = get_user_by_username(current_username)
+	configs = db_get_config(user["id"])
+	logger.info("GET /get_config — done")
+	return configs
+
+@protected_router.put("/update_config")
+async def update_config(request: Request, current_username: str = Depends(get_current_user)):
+	logger.info("GET /update_config — user=%s", current_username)
+	data = await request.json()
+	key = data.get("key")
+	val = data.get("val")
+
+	if not key:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="key is required")
+
+	user = get_user_by_username(current_username)
+	if user is None:
+		raise HTTPException(status_code=404, detail="User not found")
+
+	try:
+		updated = db_update_config(user["id"], key, val)
+	except ValueError as exc:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+	logger.info("PUT /update_config — user=%s key=%s val=%s", current_username, key, val)
+	return updated
 
 
 @protected_router.get("/getCategories")

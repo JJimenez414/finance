@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileClock, LogOut, MoreVertical, Pencil, ChevronDown, Check } from 'lucide-react'
+import { Plus, FileClock, LogOut, Settings as SettingsIcon, MoreVertical, Pencil, ChevronDown, Check } from 'lucide-react'
 import { useBuckets, type NewBucketInput } from '@/context/BucketsContext'
 import { useAuth } from '@/context/AuthContext'
 import { BucketCard } from '@/components/BucketCard'
@@ -99,6 +99,13 @@ export function Dashboard() {
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">Welcome, {user?.username}</h1>
         <div className="flex items-center gap-1 text-neutral-500">
+          <button
+            aria-label="Settings"
+            onClick={() => navigate('/settings')}
+            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-neutral-100 hover:text-neutral-900"
+          >
+            <SettingsIcon className="h-5 w-5" />
+          </button>
           <button
             aria-label="Log out"
             onClick={() => {

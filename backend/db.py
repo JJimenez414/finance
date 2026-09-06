@@ -452,25 +452,42 @@ def db_get_transactions_for_range(user_id, start_date, end_date, time_frame):
 
 def db_get_config(user_id):
 		logger.info("db_get_config — Getting configs for user: %s.", user_id)
-
 		conn = get_db_connection()
-
 		try:
 			cur = conn.cursor(cursor_factory=RealDictCursor)
-
 			cur.execute (
 				"SELECT * FROM config WHERE user_id = %s",
 				(user_id,)
 			)
-
 			configs = cur.fetchone()
-
 			if configs:
 				configs.pop('id', None)
 				configs.pop('user_id', None)
-
 			return configs
 		finally:
 			return_db_connection(conn)
+
+_CONFIG_COLUMNS = {"open_add_tran"}
+
+def db_update_config(user_id, key, val):
+      if key not in _CONFIG_COLUMNS:
+              raise ValueError(f"Unknown config key: {key}")
+
+      conn = get_db_connection()
+      try:
+              cur = conn.cursor(cursor_factory=RealDictCursor)
+              cur.execute(
+                      f"UPDATE config SET {key} = %s WHERE user_id = %s RETURNING *;",
+                      (val, user_id)
+              )
+              updated = cur.fetchone()
+              if updated:
+                      updated.pop('id', None)
+                      updated.pop('user_id', None)
+              conn.commit()
+              logger.info("db_update_config — updated %s=%s for user: %s", key, val, user_id)
+              return updated
+      finally:
+              return_db_connection(conn)
 
 

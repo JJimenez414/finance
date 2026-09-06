@@ -10,6 +10,7 @@ import { BucketDetail } from '@/pages/BucketDetail'
 import { AddTransaction } from '@/pages/AddTransaction'
 import { History } from '@/pages/History'
 import { Analytics } from '@/pages/Analytics'
+import { Settings } from '@/pages/Settings'
 import { Login } from '@/pages/Login'
 
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -39,6 +40,7 @@ function AppRoutes() {
                 <Route path="/transactions/new" element={<AddTransaction />} />
                 <Route path="/history" element={<History />} />
                 <Route path="/analytics" element={<Analytics />} />
+                <Route path="/settings" element={<Settings />} />
               </Routes>
             </AppShell>
           </RequireAuth>
