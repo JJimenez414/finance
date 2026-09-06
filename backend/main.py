@@ -24,7 +24,8 @@ from db import (
 	db_update_user_category,
 	db_delete_user_category,
 	db_get_transactions_for_range,
-	db_get_config
+	db_get_config,
+	db_clone_budget
 )
 import uvicorn
 from logger import get_logger
@@ -319,6 +320,29 @@ async def delete_category(category_id: int, request: Request, current_username: 
 		raise HTTPException(status_code=404, detail="Category not found")
 	logger.info("DELETE /deleteCategory/%s — user=%s", category_id, current_username)
 	return {"message": "Category deleted"}
+
+@protected_router.post("/clone_balance")
+async def clone_balance(request: Request, current_username: str = Depends(get_current_user)):
+	data = await request.json()
+	budget_id = data.get("budget_id")
+	description = data.get("description")
+
+	if not budget_id:
+		logger.warning("POST /clone_balance — missing budget_id for user=%s", current_username)
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="budget_id is required")
+
+	user = get_user_by_username(current_username)
+	if user is None:
+		logger.warning("POST /clone_balance — user not found: %s", current_username)
+		raise HTTPException(status_code=404, detail="User not found")
+
+	new_id = db_clone_budget(user["id"], budget_id, description)
+	if new_id is None:
+		logger.warning("POST /clone_balance — budget_id=%s not found for user=%s", budget_id, current_username)
+		raise HTTPException(status_code=404, detail="Budget not found")
+
+	logger.info("POST /clone_balance — user=%s source=%s new_id=%s", current_username, budget_id, new_id)
+	return {"message": "Balance cloned successfully", "id": new_id}
 
 @protected_router.get("/get_transactions_for_range")
 def get_transactions_for_range(start_date: str, end_date:str, time_frame:int, current_username: str = Depends(get_current_user)):

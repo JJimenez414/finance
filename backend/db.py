@@ -288,6 +288,28 @@ def db_get_budget_categories(budget_id, user_id) -> list:
 	finally:
 		return_db_connection(conn)
 
+def db_clone_budget(user_id, source_budget_id, description=None):
+	"""Creates a new budget with the same total_budget and category amounts as
+	source_budget_id — a template copy, not a copy of transaction history."""
+	conn = get_db_connection()
+	try:
+		cur = conn.cursor()
+		cur.execute(
+			"SELECT total_budget, description FROM user_budget WHERE id = %s AND user_id = %s;",
+			(source_budget_id, user_id)
+		)
+		row = cur.fetchone()
+		if row is None:
+			return None
+
+		total_budget, source_description = row
+		new_description = description or f"{source_description} (Copy)"
+	finally:
+		return_db_connection(conn)
+
+	categories = db_get_budget_categories(source_budget_id, user_id)
+	return db_create_budget(user_id, float(total_budget), new_description, categories)
+
 _DEFAULT_CATEGORIES = [
 	{"name": "Living",         "color": "#14b8a6"},
 	{"name": "Food",           "color": "#f59e0b"},

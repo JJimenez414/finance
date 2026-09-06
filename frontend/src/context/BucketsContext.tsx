@@ -8,6 +8,7 @@ import {
   updateBudget as apiUpdateBudget,
   createBudget as apiCreateBudget,
   createCategory as apiCreateCategory,
+  cloneBalance as apiCloneBalance,
   getCategories,
 } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
@@ -43,6 +44,7 @@ type BucketsContextValue = {
   activeBudget: Budget
   switchBudget: (id: string) => void
   addBudget: (name: string) => Promise<void>
+  cloneBudget: (id: string) => Promise<void>
   deleteBudget: (id: string) => void
 
   // Buckets within the active budget.
@@ -125,6 +127,12 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
       categories: DEFAULT_CATEGORIES.map((category) => ({ category, amount: 0 })),
     })
     setActiveBudgetId(String(id))
+    refresh()
+  }
+
+  const cloneBudget = async (id: string) => {
+    const { id: newId } = await apiCloneBalance({ budgetId: id })
+    setActiveBudgetId(String(newId))
     refresh()
   }
 
@@ -252,6 +260,7 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
         activeBudget,
         switchBudget,
         addBudget,
+        cloneBudget,
         deleteBudget,
         buckets: activeBudget.buckets,
         getBucket,

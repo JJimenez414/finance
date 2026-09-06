@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileClock, LogOut, MoreVertical, Pencil, ChevronDown, Check } from 'lucide-react'
+import { Plus, FileClock, LogOut, MoreVertical, Pencil, Copy, ChevronDown, Check } from 'lucide-react'
 import { useBuckets, type NewBucketInput } from '@/context/BucketsContext'
 import { useAuth } from '@/context/AuthContext'
 import { BucketCard } from '@/components/BucketCard'
@@ -31,6 +31,7 @@ export function Dashboard() {
     activeBudget,
     switchBudget,
     addBudget,
+    cloneBudget,
     buckets,
     addBucket,
     balance,
@@ -47,6 +48,8 @@ export function Dashboard() {
   const [balanceError, setBalanceError] = useState<string | null>(null)
   const [budgetError, setBudgetError] = useState<string | null>(null)
   const [bucketError, setBucketError] = useState<string | null>(null)
+  const [cloneError, setCloneError] = useState<string | null>(null)
+  const [cloning, setCloning] = useState(false)
 
   const handleSaveBalance = async (value: number) => {
     setBalanceError(null)
@@ -63,6 +66,18 @@ export function Dashboard() {
       await addBudget(name)
     } catch (err) {
       setBudgetError(err instanceof Error ? err.message : 'Failed to create budget')
+    }
+  }
+
+  const handleCloneBudget = async () => {
+    setCloneError(null)
+    setCloning(true)
+    try {
+      await cloneBudget(activeBudget.id)
+    } catch (err) {
+      setCloneError(err instanceof Error ? err.message : 'Failed to clone balance')
+    } finally {
+      setCloning(false)
     }
   }
 
@@ -129,6 +144,10 @@ export function Dashboard() {
               <Pencil className="h-4 w-4" />
               Edit balance
             </DropdownMenuItem>
+            <DropdownMenuItem disabled={cloning} onClick={handleCloneBudget}>
+              <Copy className="h-4 w-4" />
+              {cloning ? 'Cloning…' : 'Clone balance'}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -187,8 +206,8 @@ export function Dashboard() {
         </div>
       </section>
 
-      {(balanceError || budgetError || bucketError) && (
-        <p className="text-sm text-red-600">{balanceError ?? budgetError ?? bucketError}</p>
+      {(balanceError || budgetError || bucketError || cloneError) && (
+        <p className="text-sm text-red-600">{balanceError ?? budgetError ?? bucketError ?? cloneError}</p>
       )}
       <BalanceDialog open={balanceOpen} onOpenChange={setBalanceOpen} currentBalance={balance} onSave={handleSaveBalance} />
       <NewBudgetDialog open={newBudgetOpen} onOpenChange={setNewBudgetOpen} onCreate={handleCreateBudget} />
