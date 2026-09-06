@@ -59,6 +59,7 @@ type BucketsContextValue = {
   loading: boolean
   error: string | null
   refresh: () => void
+  openAddTran: boolean
 }
 
 const BucketsContext = createContext<BucketsContextValue | null>(null)
@@ -74,6 +75,7 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [openAddTran, setOpenAddTran] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -87,11 +89,12 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     getFinanceData()
-      .then((data) => {
+      .then((res) => {
         if (cancelled) return
-        const mapped = mapFinanceData(data)
+        const mapped = mapFinanceData(res.data)
         setBudgets(mapped)
         setActiveBudgetId((prev) => (prev && mapped.some((b) => b.id === prev) ? prev : (mapped[0]?.id ?? null)))
+        setOpenAddTran(res.configs?.open_add_tran ?? false)
       })
       .catch((err) => {
         if (cancelled) return
@@ -266,6 +269,7 @@ export function BucketsProvider({ children }: { children: ReactNode }) {
         loading,
         error,
         refresh,
+        openAddTran,
       }}
     >
       {children}

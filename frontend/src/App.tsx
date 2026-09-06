@@ -4,6 +4,7 @@ import { AppShell } from '@/components/AppShell'
 import { ScrollToTop } from '@/components/ScrollToTop'
 import { BucketsProvider } from '@/context/BucketsContext'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { ConfigProvider } from '@/context/ConfigContext'
 import { Dashboard } from '@/pages/Dashboard'
 import { BucketDetail } from '@/pages/BucketDetail'
 import { AddTransaction } from '@/pages/AddTransaction'
@@ -50,12 +51,14 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BucketsProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <AppRoutes />
-        </BrowserRouter>
-      </BucketsProvider>
+      <ConfigProvider>
+        <BucketsProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <AppRoutes />
+          </BrowserRouter>
+        </BucketsProvider>
+      </ConfigProvider>
     </AuthProvider>
   )
 }

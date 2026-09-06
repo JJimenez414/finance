@@ -70,7 +70,7 @@ export type FinanceCategory = {
 }
 
 export type UserConfigs = {
-  open_add_tran: boolean
+  openAddTran: boolean
 }
 
 export type FinanceData = {
