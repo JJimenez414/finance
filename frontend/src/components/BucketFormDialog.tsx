@@ -36,6 +36,7 @@ const emptyForm: NewBucketInput = {
 
 export function BucketFormDialog({ trigger, bucket, open, onOpenChange, onSubmit, maxAmount }: BucketFormDialogProps) {
   const [form, setForm] = useState<NewBucketInput>(bucket ?? emptyForm)
+  const [amountText, setAmountText] = useState(bucket ? String(bucket.budget) : '')
 
   useEffect(() => {
     if (open) {
@@ -51,6 +52,7 @@ export function BucketFormDialog({ trigger, bucket, open, onOpenChange, onSubmit
             }
           : emptyForm,
       )
+      setAmountText(bucket ? String(bucket.budget) : '')
     }
   }, [open, bucket])
 
@@ -99,8 +101,12 @@ export function BucketFormDialog({ trigger, bucket, open, onOpenChange, onSubmit
               type="number"
               min={0}
               max={maxAmount}
-              value={form.budget}
-              onChange={(e) => setForm((f) => ({ ...f, budget: Math.min(Number(e.target.value), maxAmount) }))}
+              value={amountText}
+              onChange={(e) => {
+                const raw = e.target.value
+                setAmountText(raw)
+                setForm((f) => ({ ...f, budget: raw === '' ? 0 : Math.min(Math.max(0, Number(raw)), maxAmount) }))
+              }}
             />
             <p className="text-xs text-neutral-500">${maxAmount.toLocaleString()} available to allocate</p>
           </div>
