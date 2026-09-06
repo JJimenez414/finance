@@ -8,6 +8,7 @@ import { BucketCard } from '@/components/BucketCard'
 import { BucketFormDialog } from '@/components/BucketFormDialog'
 import { BalanceDialog } from '@/components/BalanceDialog'
 import { NewBudgetDialog } from '@/components/NewBudgetDialog'
+import { CloneBalanceDialog } from '@/components/CloneBalanceDialog'
 import { AddTransactionDialog } from '@/components/AddTransactionDialog'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -51,7 +52,7 @@ export function Dashboard() {
   const [budgetError, setBudgetError] = useState<string | null>(null)
   const [bucketError, setBucketError] = useState<string | null>(null)
   const [cloneError, setCloneError] = useState<string | null>(null)
-  const [cloning, setCloning] = useState(false)
+  const [cloneOpen, setCloneOpen] = useState(false)
 
   const { config } = useConfig()
   const [promptOpen, setPromptOpen] = useState(false)
@@ -83,15 +84,12 @@ export function Dashboard() {
     }
   }
 
-  const handleCloneBudget = async () => {
+  const handleCloneBudget = async (name: string) => {
     setCloneError(null)
-    setCloning(true)
     try {
-      await cloneBudget(activeBudget.id)
+      await cloneBudget(activeBudget.id, name)
     } catch (err) {
       setCloneError(err instanceof Error ? err.message : 'Failed to clone balance')
-    } finally {
-      setCloning(false)
     }
   }
 
@@ -165,9 +163,9 @@ export function Dashboard() {
               <Pencil className="h-4 w-4" />
               Edit balance
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={cloning} onClick={handleCloneBudget}>
+            <DropdownMenuItem onClick={() => setCloneOpen(true)}>
               <Copy className="h-4 w-4" />
-              {cloning ? 'Cloning…' : 'Clone balance'}
+              Clone balance
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -232,6 +230,12 @@ export function Dashboard() {
       )}
       <BalanceDialog open={balanceOpen} onOpenChange={setBalanceOpen} currentBalance={balance} onSave={handleSaveBalance} />
       <NewBudgetDialog open={newBudgetOpen} onOpenChange={setNewBudgetOpen} onCreate={handleCreateBudget} />
+      <CloneBalanceDialog
+        open={cloneOpen}
+        onOpenChange={setCloneOpen}
+        defaultName={`${activeBudget.name} (Copy)`}
+        onClone={handleCloneBudget}
+      />
       <AddTransactionDialog open={promptOpen} onOpenChange={setPromptOpen} />
 
       <section className="flex flex-col gap-4">
