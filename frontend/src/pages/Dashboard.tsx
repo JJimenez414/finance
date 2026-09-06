@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, FileClock, LogOut, Settings as SettingsIcon, MoreVertical, Pencil, ChevronDown, Check } from 'lucide-react'
 import { useBuckets, type NewBucketInput } from '@/context/BucketsContext'
 import { useAuth } from '@/context/AuthContext'
+import { useConfig } from '@/context/ConfigContext'
 import { BucketCard } from '@/components/BucketCard'
 import { BucketFormDialog } from '@/components/BucketFormDialog'
 import { BalanceDialog } from '@/components/BalanceDialog'
 import { NewBudgetDialog } from '@/components/NewBudgetDialog'
+import { AddTransactionDialog } from '@/components/AddTransactionDialog'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
@@ -47,6 +49,18 @@ export function Dashboard() {
   const [balanceError, setBalanceError] = useState<string | null>(null)
   const [budgetError, setBudgetError] = useState<string | null>(null)
   const [bucketError, setBucketError] = useState<string | null>(null)
+
+  const { config } = useConfig()
+  const [promptOpen, setPromptOpen] = useState(false)
+
+  // Prompt once per browser session, not on every navigation back to "/".
+  useEffect(() => {
+    if (!config?.open_add_tran) return
+    if (sessionStorage.getItem('salung.promptedAddTransaction')) return
+
+    sessionStorage.setItem('salung.promptedAddTransaction', '1')
+    setPromptOpen(true)
+  }, [config])
 
   const handleSaveBalance = async (value: number) => {
     setBalanceError(null)
@@ -199,6 +213,7 @@ export function Dashboard() {
       )}
       <BalanceDialog open={balanceOpen} onOpenChange={setBalanceOpen} currentBalance={balance} onSave={handleSaveBalance} />
       <NewBudgetDialog open={newBudgetOpen} onOpenChange={setNewBudgetOpen} onCreate={handleCreateBudget} />
+      <AddTransactionDialog open={promptOpen} onOpenChange={setPromptOpen} />
 
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
